@@ -1,0 +1,164 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="2480" height="860" viewBox="0 0 2480 860">
+  <defs>
+    <linearGradient id="bgGradient" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#F6E2D5"/>
+      <stop offset="100%" stop-color="#E9F3EF"/>
+    </linearGradient>
+    <linearGradient id="orbGradient" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#F5C77E"/>
+      <stop offset="100%" stop-color="#7EA18C"/>
+    </linearGradient>
+  </defs>
+
+  <g id="onboarding" transform="translate(0 0)">
+    <rect x="0" y="0" width="375" height="812" rx="24" fill="url(#bgGradient)"/>
+    <circle cx="306" cy="60" r="36" fill="url(#orbGradient)"/>
+    <text x="24" y="80" font-family="Shippori Mincho" font-size="40" font-weight="600" fill="#1E2B24">KYO</text>
+    <text x="24" y="118" font-family="Zen Kaku Gothic New" font-size="14" font-weight="500" fill="#1E2B24" opacity="0.85">Daily logs, gentle care.</text>
+    <text x="24" y="170" font-family="Shippori Mincho" font-size="18" font-weight="600" fill="#1E2B24">Choose your focus</text>
+
+    <rect x="24" y="190" width="327" height="88" rx="18" fill="#FFFFFF" stroke="#D7E4DD"/>
+    <text x="40" y="222" font-family="Zen Kaku Gothic New" font-size="15" font-weight="600" fill="#1E2B24">Gentle diet focus</text>
+    <text x="40" y="244" font-family="Zen Kaku Gothic New" font-size="12" font-weight="500" fill="#1E2B24" opacity="0.75">Balance meals + movement without pressure.</text>
+
+    <rect x="24" y="294" width="327" height="88" rx="18" fill="#FFFFFF" stroke="#D7E4DD"/>
+    <text x="40" y="326" font-family="Zen Kaku Gothic New" font-size="15" font-weight="600" fill="#1E2B24">Health and condition</text>
+    <text x="40" y="348" font-family="Zen Kaku Gothic New" font-size="12" font-weight="500" fill="#1E2B24" opacity="0.75">Soft guidance for fatigue or recovery days.</text>
+
+    <rect x="24" y="398" width="327" height="88" rx="18" fill="#FFFFFF" stroke="#D7E4DD"/>
+    <text x="40" y="430" font-family="Zen Kaku Gothic New" font-size="15" font-weight="600" fill="#1E2B24">Deep daily review (Pro)</text>
+    <text x="40" y="452" font-family="Zen Kaku Gothic New" font-size="12" font-weight="500" fill="#1E2B24" opacity="0.75">More detailed feedback and history.</text>
+
+    <rect x="24" y="520" width="327" height="56" rx="16" fill="#7EA18C"/>
+    <text x="187" y="555" font-family="Zen Kaku Gothic New" font-size="14" font-weight="600" fill="#FFFFFF" text-anchor="middle">Start with this focus</text>
+    <text x="24" y="604" font-family="Zen Kaku Gothic New" font-size="11" font-weight="500" fill="#1E2B24" opacity="0.65">Session-only memory. No medical diagnosis.</text>
+  </g>
+
+  <g id="home" transform="translate(420 0)">
+    <rect x="0" y="0" width="375" height="812" rx="24" fill="url(#bgGradient)"/>
+    <text x="24" y="50" font-family="Zen Kaku Gothic New" font-size="12" font-weight="500" fill="#1E2B24" opacity="0.7">Tue, Sep 12</text>
+    <text x="24" y="92" font-family="Shippori Mincho" font-size="24" font-weight="600" fill="#1E2B24">Today</text>
+
+    <rect x="24" y="120" width="101" height="72" rx="14" fill="#FFFFFF" stroke="#D7E4DD"/>
+    <text x="36" y="144" font-family="Zen Kaku Gothic New" font-size="11" font-weight="500" fill="#1E2B24" opacity="0.6">Sleep</text>
+    <text x="36" y="166" font-family="Shippori Mincho" font-size="16" font-weight="600" fill="#1E2B24">6.5h</text>
+
+    <rect x="137" y="120" width="101" height="72" rx="14" fill="#FFFFFF" stroke="#D7E4DD"/>
+    <text x="149" y="144" font-family="Zen Kaku Gothic New" font-size="11" font-weight="500" fill="#1E2B24" opacity="0.6">Water</text>
+    <text x="149" y="166" font-family="Shippori Mincho" font-size="16" font-weight="600" fill="#1E2B24">1200ml</text>
+
+    <rect x="250" y="120" width="101" height="72" rx="14" fill="#FFFFFF" stroke="#D7E4DD"/>
+    <text x="262" y="144" font-family="Zen Kaku Gothic New" font-size="11" font-weight="500" fill="#1E2B24" opacity="0.6">Move</text>
+    <text x="262" y="166" font-family="Shippori Mincho" font-size="16" font-weight="600" fill="#1E2B24">20m</text>
+
+    <rect x="24" y="210" width="327" height="88" rx="16" fill="#FFFFFF" stroke="#D7E4DD"/>
+    <text x="40" y="236" font-family="Zen Kaku Gothic New" font-size="14" font-weight="600" fill="#1E2B24">Daily log</text>
+    <text x="40" y="258" font-family="Zen Kaku Gothic New" font-size="12" font-weight="500" fill="#1E2B24" opacity="0.6">Not completed</text>
+    <rect x="220" y="236" width="112" height="32" rx="12" fill="#F5C77E"/>
+    <text x="276" y="256" font-family="Zen Kaku Gothic New" font-size="12" font-weight="600" fill="#1E2B24" text-anchor="middle">Add log</text>
+
+    <rect x="24" y="314" width="327" height="96" rx="16" fill="#FFFFFF" stroke="#D7E4DD"/>
+    <text x="40" y="338" font-family="Zen Kaku Gothic New" font-size="14" font-weight="600" fill="#1E2B24">AI estimate</text>
+    <text x="40" y="360" font-family="Zen Kaku Gothic New" font-size="12" font-weight="500" fill="#1E2B24" opacity="0.7">Kcal 1850 / Carbs 210g / Salt 6.2g</text>
+
+    <rect x="24" y="428" width="327" height="120" rx="16" fill="#FFFFFF" stroke="#D7E4DD"/>
+    <text x="40" y="452" font-family="Zen Kaku Gothic New" font-size="14" font-weight="600" fill="#1E2B24">Today's advice</text>
+    <text x="40" y="474" font-family="Zen Kaku Gothic New" font-size="12" font-weight="500" fill="#1E2B24" opacity="0.75">Hydrate earlier to avoid late-night thirst.</text>
+    <text x="40" y="494" font-family="Zen Kaku Gothic New" font-size="12" font-weight="500" fill="#1E2B24" opacity="0.75">Aim for a short walk after dinner.</text>
+
+    <rect x="0" y="740" width="375" height="72" fill="#FFFFFF" stroke="#D7E4DD"/>
+    <text x="30" y="772" font-family="Zen Kaku Gothic New" font-size="12" font-weight="600" fill="#7EA18C">Home</text>
+    <text x="105" y="772" font-family="Zen Kaku Gothic New" font-size="12" font-weight="500" fill="#1E2B24" opacity="0.6">Log</text>
+    <text x="165" y="772" font-family="Zen Kaku Gothic New" font-size="12" font-weight="500" fill="#1E2B24" opacity="0.6">Advice</text>
+    <text x="245" y="772" font-family="Zen Kaku Gothic New" font-size="12" font-weight="500" fill="#1E2B24" opacity="0.6">Chat</text>
+  </g>
+
+  <g id="daily-log" transform="translate(840 0)">
+    <rect x="0" y="0" width="375" height="812" rx="24" fill="url(#bgGradient)"/>
+    <text x="24" y="70" font-family="Shippori Mincho" font-size="24" font-weight="600" fill="#1E2B24">Daily log</text>
+
+    <rect x="24" y="100" width="327" height="64" rx="14" fill="#FFFFFF" stroke="#D7E4DD"/>
+    <text x="40" y="124" font-family="Zen Kaku Gothic New" font-size="12" font-weight="600" fill="#1E2B24" opacity="0.8">Sleep hours</text>
+    <text x="40" y="146" font-family="Shippori Mincho" font-size="16" font-weight="600" fill="#1E2B24">6.5</text>
+
+    <rect x="24" y="176" width="327" height="64" rx="14" fill="#FFFFFF" stroke="#D7E4DD"/>
+    <text x="40" y="200" font-family="Zen Kaku Gothic New" font-size="12" font-weight="600" fill="#1E2B24" opacity="0.8">Meals</text>
+    <text x="40" y="222" font-family="Zen Kaku Gothic New" font-size="12" font-weight="500" fill="#1E2B24" opacity="0.65">Chicken bowl, salad, miso soup</text>
+
+    <rect x="24" y="252" width="327" height="64" rx="14" fill="#FFFFFF" stroke="#D7E4DD"/>
+    <text x="40" y="276" font-family="Zen Kaku Gothic New" font-size="12" font-weight="600" fill="#1E2B24" opacity="0.8">Water intake (ml)</text>
+    <text x="40" y="298" font-family="Shippori Mincho" font-size="16" font-weight="600" fill="#1E2B24">1200</text>
+
+    <rect x="24" y="328" width="327" height="64" rx="14" fill="#FFFFFF" stroke="#D7E4DD"/>
+    <text x="40" y="352" font-family="Zen Kaku Gothic New" font-size="12" font-weight="600" fill="#1E2B24" opacity="0.8">Condition</text>
+    <text x="40" y="374" font-family="Zen Kaku Gothic New" font-size="12" font-weight="500" fill="#1E2B24" opacity="0.65">Light fatigue, shoulders stiff</text>
+
+    <rect x="24" y="404" width="327" height="64" rx="14" fill="#FFFFFF" stroke="#D7E4DD"/>
+    <text x="40" y="428" font-family="Zen Kaku Gothic New" font-size="12" font-weight="600" fill="#1E2B24" opacity="0.8">Exercise</text>
+    <text x="40" y="450" font-family="Zen Kaku Gothic New" font-size="12" font-weight="500" fill="#1E2B24" opacity="0.65">20 min walk</text>
+
+    <rect x="24" y="490" width="327" height="96" rx="16" fill="#FFFFFF" stroke="#D7E4DD"/>
+    <text x="40" y="514" font-family="Zen Kaku Gothic New" font-size="12" font-weight="600" fill="#1E2B24" opacity="0.8">AI estimate (editable)</text>
+    <text x="40" y="536" font-family="Zen Kaku Gothic New" font-size="12" font-weight="500" fill="#1E2B24" opacity="0.65">Kcal 1850 / Carbs 210g / Salt 6.2g</text>
+
+    <rect x="24" y="610" width="327" height="56" rx="16" fill="#7EA18C"/>
+    <text x="187" y="645" font-family="Zen Kaku Gothic New" font-size="14" font-weight="600" fill="#FFFFFF" text-anchor="middle">Generate advice</text>
+  </g>
+
+  <g id="advice" transform="translate(1260 0)">
+    <rect x="0" y="0" width="375" height="812" rx="24" fill="url(#bgGradient)"/>
+    <text x="24" y="70" font-family="Shippori Mincho" font-size="24" font-weight="600" fill="#1E2B24">Daily advice</text>
+
+    <rect x="24" y="100" width="327" height="220" rx="16" fill="#FFFFFF" stroke="#D7E4DD"/>
+    <text x="40" y="124" font-family="Zen Kaku Gothic New" font-size="14" font-weight="600" fill="#1E2B24">Gentle focus for today</text>
+    <text x="40" y="146" font-family="Zen Kaku Gothic New" font-size="12" font-weight="500" fill="#1E2B24" opacity="0.75">- Add a cup of water before lunch.</text>
+    <text x="40" y="168" font-family="Zen Kaku Gothic New" font-size="12" font-weight="500" fill="#1E2B24" opacity="0.75">- Keep dinner lighter on salt.</text>
+    <text x="40" y="190" font-family="Zen Kaku Gothic New" font-size="12" font-weight="500" fill="#1E2B24" opacity="0.75">- Short stretch to ease shoulder tension.</text>
+
+    <rect x="24" y="340" width="327" height="96" rx="16" fill="#F7EDD8" stroke="#E9D8BD"/>
+    <text x="40" y="364" font-family="Zen Kaku Gothic New" font-size="12" font-weight="600" fill="#6C4E28">Caution</text>
+    <text x="40" y="386" font-family="Zen Kaku Gothic New" font-size="11" font-weight="500" fill="#6C4E28" opacity="0.85">This is not medical advice. Consult a physician if needed.</text>
+
+    <rect x="24" y="460" width="327" height="56" rx="16" fill="#7EA18C"/>
+    <text x="187" y="495" font-family="Zen Kaku Gothic New" font-size="14" font-weight="600" fill="#FFFFFF" text-anchor="middle">Ask a question</text>
+  </g>
+
+  <g id="chat" transform="translate(1680 0)">
+    <rect x="0" y="0" width="375" height="812" rx="24" fill="url(#bgGradient)"/>
+    <text x="24" y="70" font-family="Shippori Mincho" font-size="24" font-weight="600" fill="#1E2B24">Consult chat</text>
+
+    <rect x="24" y="100" width="260" height="64" rx="16" fill="#FFFFFF" stroke="#D7E4DD"/>
+    <text x="40" y="122" font-family="Zen Kaku Gothic New" font-size="12" font-weight="500" fill="#1E2B24" opacity="0.8">Tell me how you feel today and I will guide you.</text>
+
+    <rect x="131" y="180" width="220" height="56" rx="16" fill="#7EA18C"/>
+    <text x="147" y="204" font-family="Zen Kaku Gothic New" font-size="12" font-weight="600" fill="#FFFFFF">I feel tired after late work.</text>
+
+    <rect x="24" y="252" width="280" height="72" rx="16" fill="#FFFFFF" stroke="#D7E4DD"/>
+    <text x="40" y="276" font-family="Zen Kaku Gothic New" font-size="12" font-weight="500" fill="#1E2B24" opacity="0.8">Try a short stretch and warm shower. Hydrate gently.</text>
+
+    <rect x="24" y="710" width="327" height="56" rx="16" fill="#FFFFFF" stroke="#D7E4DD"/>
+    <text x="40" y="734" font-family="Zen Kaku Gothic New" font-size="12" font-weight="500" fill="#1E2B24" opacity="0.5">Type your question...</text>
+    <circle cx="322" cy="738" r="16" fill="#F5C77E"/>
+    <text x="322" y="742" font-family="Zen Kaku Gothic New" font-size="10" font-weight="700" fill="#1E2B24" text-anchor="middle">Send</text>
+  </g>
+
+  <g id="subscription" transform="translate(2100 0)">
+    <rect x="0" y="0" width="375" height="812" rx="24" fill="url(#bgGradient)"/>
+    <text x="24" y="70" font-family="Shippori Mincho" font-size="24" font-weight="600" fill="#1E2B24">Upgrade</text>
+
+    <rect x="24" y="100" width="327" height="140" rx="16" fill="#FFFFFF" stroke="#D7E4DD"/>
+    <text x="40" y="124" font-family="Zen Kaku Gothic New" font-size="14" font-weight="600" fill="#1E2B24">Free</text>
+    <text x="40" y="146" font-family="Zen Kaku Gothic New" font-size="12" font-weight="500" fill="#1E2B24" opacity="0.7">1 day log at a time</text>
+    <text x="40" y="168" font-family="Zen Kaku Gothic New" font-size="12" font-weight="500" fill="#1E2B24" opacity="0.7">Up to 14 days of history</text>
+
+    <rect x="24" y="260" width="327" height="160" rx="16" fill="#FFFFFF" stroke="#D7E4DD"/>
+    <text x="40" y="284" font-family="Zen Kaku Gothic New" font-size="14" font-weight="700" fill="#1E2B24">Pro</text>
+    <text x="40" y="306" font-family="Zen Kaku Gothic New" font-size="12" font-weight="500" fill="#1E2B24" opacity="0.7">Deep daily review</text>
+    <text x="40" y="328" font-family="Zen Kaku Gothic New" font-size="12" font-weight="500" fill="#1E2B24" opacity="0.7">Long-term trends and insights</text>
+    <text x="40" y="350" font-family="Zen Kaku Gothic New" font-size="12" font-weight="500" fill="#1E2B24" opacity="0.7">Priority chat responses</text>
+
+    <rect x="24" y="450" width="327" height="56" rx="16" fill="#F5C77E"/>
+    <text x="187" y="485" font-family="Zen Kaku Gothic New" font-size="14" font-weight="700" fill="#1E2B24" text-anchor="middle">Start Pro</text>
+    <text x="24" y="524" font-family="Zen Kaku Gothic New" font-size="11" font-weight="500" fill="#1E2B24" opacity="0.6">Free users can log 1 day; history capped at 14 days.</text>
+  </g>
+</svg>
