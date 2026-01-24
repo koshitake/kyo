@@ -14,7 +14,7 @@ class HelthCareLLM:
     # 今日のAIアドバイスを取得する
     #
     #
-    def get_daily_helthCare(self,purpose:str, meal:str, sleep_hours:str, water_ml:str, stress:str, mood:str):
+    def get_daily_helthCare(self,purpose:str, meal:str, sleep_hours:str, water_ml:str, exercise:str, stress:str, mood:str):
         
         llm = ChatOpenAI(
                 model_name=ctchat.MODEL_NAME, 
@@ -22,7 +22,7 @@ class HelthCareLLM:
                 )
 
         prompt = PromptTemplate(
-                input_variables=["purpose","meal","sleep","water","stress","mood","restrictions"],
+                input_variables=["purpose","meal","sleep","water","exercise","stress","mood","restrictions"],
                 template=hc.SYSTEM_PROMPT_CREATE_INDEPENDENT_TEXT,
         )
 
@@ -33,6 +33,7 @@ class HelthCareLLM:
                     water=water_ml,
                     stress=stress,
                     mood=mood,
+                    exercise=exercise,
                     restrictions=rt.SYSTEM_RESTRICTIONS_WORD
                 )
             
