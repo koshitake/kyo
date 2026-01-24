@@ -56,7 +56,7 @@ meal = f"""
         Breakfast:{breakfast}
         Lunch:{lunch}
         Dinner:{dinner}
-        eating between meals]{snack}
+        eating between meals:{snack}
         """
 if st.button("栄養素を計算する"):
     with st.spinner("計算しています..."):
