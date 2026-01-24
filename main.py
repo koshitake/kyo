@@ -8,7 +8,10 @@ from langchain.output_parsers import PydanticOutputParser
 from langchain.chains import create_history_aware_retriever, create_retrieval_chain
 from langchain.chains.combine_documents import create_stuff_documents_chain
 from utils.NutrientsLLM import NutrientsLLM
-
+from utils.HelthCareLLM import HelthCareLLM
+import constants.ChatOpenAI as ctchat
+import constants.HelthCare as hc
+import constants.PurposeOfUse as pou
 #
 # main処理
 #
@@ -26,13 +29,13 @@ purpose = st.radio(
     "利用目的を選択",
     ["ゆるめのダイエット", "体調・健康", "本格的な健康管理"],
 )
-# ゆるめダイエット
-# あなたはダイエットをサポートするコンサルタントです。気軽なダイエットの人に優しく日々のアドバイスをします。
-# 体調・健康
-# あなたは健康志向な人に対するコンサルタントです。日々の健康維持をしたい人に対してアドバイスをします
-# 日々の振り返り
-# あなたは優秀かつプロフェッショナル向けの健康管理を行うコンサルタントです。日々の記録を厳密に管理し適切なアドバイスを行います
-
+PROMPT_PURPOSE=pou.POU_DIET
+if purpose == "ゆるめのダイエット":
+    PROMPT_PURPOSE=pou.POU_DIET
+elif purpose == "体調・健康":
+    PROMPT_PURPOSE=pou.POU_HELTH
+else :
+    PROMPT_PURPOSE=pou.POU_PREMIUM_HELTH
 
 st.subheader("食事")
 breakfast = st.text_input("朝", placeholder="例: ごはんと卵")
@@ -40,20 +43,13 @@ lunch = st.text_input("昼", placeholder="例: サンドイッチ")
 dinner = st.text_input("夜", placeholder="例: 鶏肉と野菜")
 snack = st.text_input("間食・飲み物など", placeholder="例: ナッツ")
 
-#if "nutrition" not in st.session_state:
-#    st.session_state.nutrition = None
-
-if st.button("栄養素を計算する"):
-    if breakfast == "":
-        breakfast = "なし"
-
-    meal = f"""
+meal = f"""
         Breakfast:{breakfast}
         Lunch:{lunch}
         Dinner:{dinner}
         eating between meals]{snack}
         """
-
+if st.button("栄養素を計算する"):
     with st.spinner("計算しています..."):
         # LLM
         nl = NutrientsLLM()
@@ -76,32 +72,37 @@ water_ml = st.number_input("水分量(ml)", min_value=0, max_value=5000, step=10
 st.subheader("運動")
 exercise = st.text_input("運動内容", placeholder="例: ランニング20分")
 
-st.subheader("ストレス度")
+st.subheader("今日のストレス度")
 stress = st.selectbox("ストレス度(0-5)", [0, 1, 2, 3, 4, 5])
 
 st.subheader("今日の気分")
-mood = st.text_input("気分", placeholder="例: 今日はだるい")
+mood = st.text_input("気分", placeholder="例: 今日はだるい 肩が凝っている")
 
 st.subheader("今日のAIアドバイス")
-advice_parts = []
-if sleep_hours > 0 and sleep_hours < 6:
-    advice_parts.append("睡眠時間が短めなので、今日は早めに休むと良さそうです。")
-if water_ml > 0 and water_ml < 1500:
-    advice_parts.append("水分が少なめなので、こまめに水分補給しましょう。")
-if stress >= 4:
-    advice_parts.append("ストレスが高めです。短い散歩や深呼吸がおすすめです。")
-if not advice_parts:
-    advice_parts.append("良い調子です。今日も無理せず続けましょう。")
-advice_text = " ".join(advice_parts)
-
 if st.button("今日のAIアドバイスを聞く"):
-    # TODO:AIで生成する
-    # 今日の記録を入力した状態を元にアドバイスを生成する
-    # 何度も作り直すことができる。
-    # 履歴は保存しない
-    # 結果を表示
-    # 目的に応じて返答方法を分ける
-    st.write(advice_text)
+    with st.spinner("アドバイスを生成しています..."):
+        # 今日の記録を入力した状態を元にアドバイスを生成する
+        # 何度も作り直すことができる。
+        # 履歴は保存しない
+        # 結果を表示
+        # 目的に応じて返答方法を分ける
+        print(sleep_hours)
+        print(water_ml)
+        print(exercise)
+        print(stress)
+        print(mood)
+        print(meal)
+        
+        hcllm = HelthCareLLM()
+        msg = hcllm.get_daily_helthCare(
+            PROMPT_PURPOSE,
+            meal,
+            sleep_hours,
+            water_ml,
+            stress,
+            mood
+        )
+        st.write(msg)
 
 st.subheader("相談チャット")
 if "chat_history" not in st.session_state:

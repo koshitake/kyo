@@ -1,5 +1,3 @@
-DEFAULT_SYSTEM_MESSAGE="You are a helpful assistant."
-
 
 #あなたは栄養管理士です。
 #食事内容から、カロリー、炭水化物、脂質、タンパク質の量を計算してください。
@@ -22,4 +20,6 @@ If no value is entered, enter 0g.
 
 #Diet
 {context}
+
+{restrictions}
 """
