@@ -9,7 +9,8 @@ import constants.Restrictions as rt
 from utils.TikToken import TikToken as tt
 
 #
-# 栄養素のLLM
+# 栄養素を算出するLLM
+# TODO:もう少し速くできないか検討する。
 #
 class NutrientsLLM:
 

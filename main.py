@@ -12,11 +12,104 @@ from utils.HelthCareLLM import HelthCareLLM
 import constants.ChatOpenAI as ctchat
 import constants.HelthCare as hc
 import constants.PurposeOfUse as pou
+import psycopg2
+
 
 # ===========================
 # 初期処理
 # ===========================
 load_dotenv()
+
+import psycopg2
+from dotenv import load_dotenv
+import os
+
+# Load environment variables from .env
+load_dotenv()
+
+# ====================== 
+# ConnectionTest
+# ====================== 
+
+# RAGの読み込み
+# カテゴリ別に(データを読み込んで、Agentsを作成する)
+# データ容量は起動の状況により調整
+# 
+# dailydata
+# """
+# {
+#  date:"2025/12/01",
+#  helth_data:{
+#               meal:"朝：ご飯",
+#               nutri:"1500kcal/炭水化物:300g/脂質:100g/タンパク質:100g", →ない時は0にする
+#               sleep_hours:7.5,
+#               water_ml:1500,
+#               exercise:"ランニング30分",
+#               stress(0-5):1,
+#               mood:"元気!"},
+#  }
+# ""
+
+DBURL=os.getenv("DATABASE_URL")
+# Connect to the database
+try:
+    connection = psycopg2.connect(DBURL)
+    print("Connection successful!")
+    
+    # Create a cursor to execute SQL queries
+    cursor = connection.cursor()
+
+    #初期ロード
+
+    # Example query
+    # oauthでユーザーをとるがとりあえず固定
+    # 健康データを取得
+    cursor.execute("SELECT * from kyo.users;")
+    cursor.execute("""
+        select 
+            u.uid,
+            u.name,
+            p.name,
+            h.meal,
+            h.kcal,
+            h.carbo,
+            h.lipid,
+            h.protein,
+            h.sleep_hours,
+            h.stress,
+            h.mood,
+            h.exercise
+        From 
+            kyo.users as u,
+            kyo.purpose_master as p,
+            kyo.daily_helth as h
+        where
+            u.purpose = p.id and
+            u.uid = h.uid and
+            u.oauth_provider='google' and
+            u.oauth_subject='1' and
+            h.record_at='2026-02-04';
+    """)
+    result = cursor.fetchone()
+    print(f"test:{result}")
+    # Close the cursor and connection
+    cursor.close()
+    connection.close()
+    print("Connection closed.")
+
+    # 健康データからRAGがなければ生成
+    # SQLで存在チェック
+    # なければRAG化
+    # 生データとRAGをDBへ書き込み
+
+    # 相談チャットのLLMに読ませる(一月分)
+
+
+
+
+except Exception as e:
+    print(f"Failed to connect: {e}")
+
 
 # ===========================
 # 描画処理
@@ -117,6 +210,16 @@ if st.button("今日のAIアドバイスを聞く"):
         )
         st.write(msg)
 
+if st.button("保存する"):
+    print("保存")
+    # 栄養素の内容がない時は計算
+    # その日のデータをJSON化
+    # DBへ保存
+    # データ集計バッチが必要？
+    # 一月のデータの平均値を計算
+    # 1週間のデータの平均値を計算
+
+
 # ===========================
 # 相談チャット画面
 # ===========================
@@ -136,9 +239,13 @@ question = st.text_input("質問を入力")
 #LLMへ質問をする
 if st.button("送信") and question:
     # TODO:会話履歴を記録したRAGでLLMを生成する
-    # 健康データをRAGで分けて管理
-    # Agentsで専門的に特化したアドバイスを行う
-    # 目的に応じで回答の精度を分ける
+    # 日次の記録を保管する(DB)
+    # Agentsで専門的に特化したアドバイスを行う。
+    # 利用目的に応じで回答の精度を分ける
+    # 1日のデータは生データ(JSONで)
+    # RAGは１ヶ月分だけデータとしてまとめる。それ以上は入れない
+    # Agentsでカテゴリ別で用意しそれぞれにRAGデータを入れる
+    # 過去のデータは必要に応じてRAG化する
     answer = "今は簡易版のため、ここに回答が表示されます。"
     st.session_state.chat_history.append((question, answer))
 
