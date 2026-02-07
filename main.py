@@ -2,16 +2,22 @@
 import streamlit as st
 from dotenv import load_dotenv
 from langchain.prompts import PromptTemplate, ChatPromptTemplate, MessagesPlaceholder
-from langchain.schema import SystemMessage, HumanMessage
+from langchain.schema import SystemMessage, HumanMessage, Document
 from langchain_openai import ChatOpenAI
 from langchain.output_parsers import PydanticOutputParser
 from langchain.chains import create_history_aware_retriever, create_retrieval_chain
 from langchain.chains.combine_documents import create_stuff_documents_chain
+from langchain.text_splitter import CharacterTextSplitter
+from langchain.embeddings.openai import OpenAIEmbeddings
+from langchain.vectorstores import Chroma
+from psycopg2.extras import execute_values
+
 from utils.NutrientsLLM import NutrientsLLM
 from utils.HelthCareLLM import HelthCareLLM
 import constants.ChatOpenAI as ctchat
 import constants.HelthCare as hc
 import constants.PurposeOfUse as pou
+import constants.ConsulationHelth as cc
 import psycopg2
 
 
@@ -70,6 +76,7 @@ try:
             u.uid,
             u.name,
             p.name,
+            h.record_at,
             h.meal,
             h.kcal,
             h.carbo,
@@ -92,20 +99,97 @@ try:
     """)
     result = cursor.fetchone()
     print(f"test:{result}")
-    # Close the cursor and connection
-    cursor.close()
-    connection.close()
-    print("Connection closed.")
+
 
     # 健康データからRAGがなければ生成
     # SQLで存在チェック
     # なければRAG化
     # 生データとRAGをDBへ書き込み
+    # record_at
+    # category
+    # uuid
+    # 睡眠
+    # 水分
+    # ストレス
+    # 気分
+    # 運動
 
+    d = cc.DAILY_RAG_BASE_DATA % ("2024-02-12", "stress", result[0])
+    d2 = cc.DAILY_RAG_BASE_DATA % ("2024-02-12", "meals", result[0])
+    d3 = cc.DAILY_RAG_BASE_DATA % ("2024-02-12", "exercise", result[0])
+    d4 = cc.DAILY_RAG_BASE_DATA % ("2024-02-12", "general", result[0])
+    
+    
+    s = cc.DAILY_STRESS_RAG % (result[9], result[10], result[11])
+    s2 = cc.DAILY_MEAL_RAG % (result[4], result[5])
+    s3 = cc.DAILY_EXERCISE_RAG % (result[9], result[5], result[12])
+    s4 = cc.DAILY_GENERAL_RAG % (result[4], result[9], result[5], result[10], result[11], result[12])
     # 相談チャットのLLMに読ませる(一月分)
+    aa = f"stress:{d}\n{s}"
+    aa2 = f"meals:{d2}\n{s2}"
+    aa3 = f"exercise:{d3}\n{s3}"
+    aa4 = f"general:{d4}\n{s4}"
+    print(aa)
+    print(aa2)
+    print(aa3)
+    print(aa4)
 
+    #RAG化
+    docs = [Document(page_content=aa)]
+    text_splitter = CharacterTextSplitter(
+            chunk_size=500,
+            chunk_overlap=30,
+            separator="\n",
+        )
+    splitted_pages = text_splitter.split_documents(docs)
+    print(f"split_pages count: {len(splitted_pages)}")
+    embeddings = OpenAIEmbeddings(
+        model="text-embedding-ada-002",
+    )
+    # Documentオブジェクトから本文(text)だけを取り出す
+    chunk_texts = []
+    for chunk_doc in splitted_pages:
+        chunk_texts.append(chunk_doc.page_content)
 
+    print(chunk_texts)
 
+    # 取り出した本文ごとにベクトル化する
+    vectors = embeddings.embed_documents(chunk_texts) 
+    #print(vectors)
+
+    with connection:
+        with connection.cursor() as cur:
+            rows = []
+            for i, (chunk_text, vec) in enumerate(zip(chunk_texts, vectors)):
+                rows.append(
+                    (
+                        i,
+                        i,
+                        chunk_text,
+                        "text-embedding-ada-002",
+                        vec,      # rag_embedding_1536
+                        None,     # rag_embedding_3072
+                        "2026-02-07",
+                        "2026-02-07",
+                    )
+                )
+                execute_values(
+                    cur,
+                    """
+                    INSERT INTO kyo.daily_rags
+                    (source_id, chunk_index, chunk_text, model,
+                    rag_embedding_1536, rag_embedding_3072,
+                    created_user, created_at, updated_user, updated_at)
+                    VALUES %s
+                    """,
+                    rows,
+                    template="(%s,%s,%s,%s,%s,%s,%s,NOW(),%s,NOW())",
+                )
+
+    # Close the cursor and connection
+    cursor.close()
+    connection.close()
+    print("Connection closed.")
 
 except Exception as e:
     print(f"Failed to connect: {e}")

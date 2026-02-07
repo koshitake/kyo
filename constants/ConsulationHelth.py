@@ -23,3 +23,18 @@ SYSTEM_MESSAGE = """
 # 栄養管理士/食育アドバイザー
 # 理学療法士/作業療法士
 # 用途に応じて追加する
+
+#RAG基本データ
+DAILY_RAG_BASE_DATA="[日付:%s] [category: %s] [uid: %s]"
+
+#ストレスに関するアドバイス
+DAILY_STRESS_RAG="睡眠: %sh / ストレス: %s/5 / 気分: %s"
+
+#食事のアドバイス
+DAILY_MEAL_RAG="食事:%s / 水分: %sml"
+
+#運動のアドバイス
+DAILY_EXERCISE_RAG="睡眠: %sh / 水分: %sml / 運動: %s"
+
+#その他のアドバイス
+DAILY_GENERAL_RAG="食事:%s / 睡眠: %sh / 水分: %sml / ストレス: %s/5 / 気分: %s / 運動: %s"

@@ -36,21 +36,37 @@ CREATE TABLE kyo.daily_helth (
   PRIMARY KEY (uid, record_at)
 );
 
-## rag化テーブル(最大１ヶ月)
-CREATE TABLE kyo.daily_rags (
+## rag元データテーブル(生テキスト)
+CREATE TABLE kyo.daily_rag_sources (
+  id bigserial PRIMARY KEY,
   uid bigint NOT NULL,
   category_id int NOT NULL,
   record_at date NOT NULL,
-  rag_text text,
-  model text,
+  rag_text text NOT NULL,
+  created_user varchar(32),
+  created_at timestamptz,
+  updated_user varchar(32),
+  updated_at timestamptz,
+  UNIQUE (uid, category_id, record_at)
+);
+
+## ragチャンクテーブル(ベクトル検索対象)
+CREATE TABLE kyo.daily_rags (
+  id bigserial PRIMARY KEY,
+  source_id bigint NOT NULL, -- kyo.daily_rag_sources(id) 
+  chunk_index int NOT NULL,
+  chunk_text text NOT NULL,
+  model text NOT NULL,
   rag_embedding_1536 vector(1536),
   rag_embedding_3072 vector(3072),
   created_user varchar(32),
   created_at timestamptz,
   updated_user varchar(32),
   updated_at timestamptz,
-  PRIMARY KEY (uid, category_id, record_at)
+  UNIQUE (source_id, chunk_index)
 );
+
+CREATE INDEX idx_daily_rags_source ON kyo.daily_rags (source_id, chunk_index);
 
 ## categoryテーブル
 CREATE TABLE kyo.category_master (
