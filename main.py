@@ -11,6 +11,7 @@ from langchain.text_splitter import CharacterTextSplitter
 from langchain.embeddings.openai import OpenAIEmbeddings
 from langchain.vectorstores import Chroma
 from psycopg2.extras import execute_values
+from pgvector.psycopg2 import register_vector
 
 from utils.NutrientsLLM import NutrientsLLM
 from utils.HelthCareLLM import HelthCareLLM
@@ -85,7 +86,8 @@ try:
             h.sleep_hours,
             h.stress,
             h.mood,
-            h.exercise
+            h.exercise,
+            u.id
         From 
             kyo.users as u,
             kyo.purpose_master as p,
@@ -99,6 +101,8 @@ try:
     """)
     result = cursor.fetchone()
     print(f"test:{result}")
+    if result is None:
+        raise Exception("daily_helth data not found for target date")
 
 
     # 健康データからRAGがなければ生成
@@ -138,7 +142,7 @@ try:
     docs = [Document(page_content=aa)]
     text_splitter = CharacterTextSplitter(
             chunk_size=500,
-            chunk_overlap=30,
+            chunk_overlap=50,
             separator="\n",
         )
     splitted_pages = text_splitter.split_documents(docs)
@@ -157,34 +161,61 @@ try:
     vectors = embeddings.embed_documents(chunk_texts) 
     #print(vectors)
 
+    register_vector(connection)
     with connection:
         with connection.cursor() as cur:
+            user_id = result[13]
+            category_id = 1
+            record_at = result[3]
+            created_user = "system"
+
+            # 元テキストを保存し、source_idを取得する
+            cur.execute(
+                """
+                INSERT INTO kyo.daily_rag_sources
+                  (uid, category_id, record_at, rag_text, created_user, created_at, updated_user, updated_at)
+                VALUES (%s, %s, %s, %s, %s, NOW(), %s, NOW())
+                ON CONFLICT (uid, category_id, record_at)
+                DO UPDATE SET
+                  rag_text = EXCLUDED.rag_text,
+                  updated_user = EXCLUDED.updated_user,
+                  updated_at = NOW()
+                RETURNING id
+                """,
+                (user_id, category_id, record_at, aa, created_user, created_user),
+            )
+            source_id = cur.fetchone()[0]
+
+            # 再作成時の重複を防ぐ
+            cur.execute("DELETE FROM kyo.daily_rags WHERE source_id = %s", (source_id,))
+
             rows = []
             for i, (chunk_text, vec) in enumerate(zip(chunk_texts, vectors)):
                 rows.append(
                     (
-                        i,
+                        source_id,
                         i,
                         chunk_text,
                         "text-embedding-ada-002",
                         vec,      # rag_embedding_1536
                         None,     # rag_embedding_3072
-                        "2026-02-07",
-                        "2026-02-07",
+                        created_user,
+                        created_user,
                     )
                 )
-                execute_values(
-                    cur,
-                    """
-                    INSERT INTO kyo.daily_rags
-                    (source_id, chunk_index, chunk_text, model,
-                    rag_embedding_1536, rag_embedding_3072,
-                    created_user, created_at, updated_user, updated_at)
-                    VALUES %s
-                    """,
-                    rows,
-                    template="(%s,%s,%s,%s,%s,%s,%s,NOW(),%s,NOW())",
-                )
+
+            execute_values(
+                cur,
+                """
+                INSERT INTO kyo.daily_rags
+                (source_id, chunk_index, chunk_text, model,
+                rag_embedding_1536, rag_embedding_3072,
+                created_user, created_at, updated_user, updated_at)
+                VALUES %s
+                """,
+                rows,
+                template="(%s,%s,%s,%s,%s,%s,%s,NOW(),%s,NOW())",
+            )
 
     # Close the cursor and connection
     cursor.close()
