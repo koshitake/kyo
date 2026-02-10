@@ -1,5 +1,6 @@
 # codename:kyo
 import streamlit as st
+import os
 from dotenv import load_dotenv
 from langchain.prompts import PromptTemplate, ChatPromptTemplate, MessagesPlaceholder
 from langchain.schema import SystemMessage, HumanMessage, Document
@@ -10,28 +11,20 @@ from langchain.chains.combine_documents import create_stuff_documents_chain
 from langchain.text_splitter import CharacterTextSplitter
 from langchain.embeddings.openai import OpenAIEmbeddings
 from langchain.vectorstores import Chroma
-from psycopg2.extras import execute_values
-from pgvector.psycopg2 import register_vector
 
 from utils.NutrientsLLM import NutrientsLLM
 from utils.HelthCareLLM import HelthCareLLM
+from db.DailyHealthQueryManager import DailyHealthQueryManager
+from db.DailyRagUpsertManager import DailyRagUpsertManager
+
 import constants.ChatOpenAI as ctchat
 import constants.HelthCare as hc
 import constants.PurposeOfUse as pou
 import constants.ConsulationHelth as cc
-import psycopg2
-
 
 # ===========================
 # 初期処理
 # ===========================
-load_dotenv()
-
-import psycopg2
-from dotenv import load_dotenv
-import os
-
-# Load environment variables from .env
 load_dotenv()
 
 # ====================== 
@@ -58,53 +51,11 @@ load_dotenv()
 # ""
 
 DBURL=os.getenv("DATABASE_URL")
-# Connect to the database
+
+dhqm = DailyHealthQueryManager()
+result = dhqm.query('google','1','2026-02-04')
+print(result)
 try:
-    connection = psycopg2.connect(DBURL)
-    print("Connection successful!")
-    
-    # Create a cursor to execute SQL queries
-    cursor = connection.cursor()
-
-    #初期ロード
-
-    # Example query
-    # oauthでユーザーをとるがとりあえず固定
-    # 健康データを取得
-    cursor.execute("SELECT * from kyo.users;")
-    cursor.execute("""
-        select 
-            u.uid,
-            u.name,
-            p.name,
-            h.record_at,
-            h.meal,
-            h.kcal,
-            h.carbo,
-            h.lipid,
-            h.protein,
-            h.sleep_hours,
-            h.stress,
-            h.mood,
-            h.exercise,
-            u.id
-        From 
-            kyo.users as u,
-            kyo.purpose_master as p,
-            kyo.daily_helth as h
-        where
-            u.purpose = p.id and
-            u.uid = h.uid and
-            u.oauth_provider='google' and
-            u.oauth_subject='1' and
-            h.record_at='2026-02-04';
-    """)
-    result = cursor.fetchone()
-    print(f"test:{result}")
-    if result is None:
-        raise Exception("daily_helth data not found for target date")
-
-
     # 健康データからRAGがなければ生成
     # SQLで存在チェック
     # なければRAG化
@@ -160,67 +111,18 @@ try:
     # 取り出した本文ごとにベクトル化する
     vectors = embeddings.embed_documents(chunk_texts) 
     #print(vectors)
-
-    register_vector(connection)
-    with connection:
-        with connection.cursor() as cur:
-            user_id = result[13]
-            category_id = 1
-            record_at = result[3]
-            created_user = "system"
-
-            # 元テキストを保存し、source_idを取得する
-            cur.execute(
-                """
-                INSERT INTO kyo.daily_rag_sources
-                  (uid, category_id, record_at, rag_text, created_user, created_at, updated_user, updated_at)
-                VALUES (%s, %s, %s, %s, %s, NOW(), %s, NOW())
-                ON CONFLICT (uid, category_id, record_at)
-                DO UPDATE SET
-                  rag_text = EXCLUDED.rag_text,
-                  updated_user = EXCLUDED.updated_user,
-                  updated_at = NOW()
-                RETURNING id
-                """,
-                (user_id, category_id, record_at, aa, created_user, created_user),
-            )
-            source_id = cur.fetchone()[0]
-
-            # 再作成時の重複を防ぐ
-            cur.execute("DELETE FROM kyo.daily_rags WHERE source_id = %s", (source_id,))
-
-            rows = []
-            for i, (chunk_text, vec) in enumerate(zip(chunk_texts, vectors)):
-                rows.append(
-                    (
-                        source_id,
-                        i,
-                        chunk_text,
-                        "text-embedding-ada-002",
-                        vec,      # rag_embedding_1536
-                        None,     # rag_embedding_3072
-                        created_user,
-                        created_user,
-                    )
-                )
-
-            execute_values(
-                cur,
-                """
-                INSERT INTO kyo.daily_rags
-                (source_id, chunk_index, chunk_text, model,
-                rag_embedding_1536, rag_embedding_3072,
-                created_user, created_at, updated_user, updated_at)
-                VALUES %s
-                """,
-                rows,
-                template="(%s,%s,%s,%s,%s,%s,%s,NOW(),%s,NOW())",
-            )
-
-    # Close the cursor and connection
-    cursor.close()
-    connection.close()
-    print("Connection closed.")
+    drqm = DailyRagUpsertManager()
+    rag_result = drqm.query(
+        user_id=result[13],
+        category_id=1,
+        record_at=result[3],
+        rag_text=aa,
+        chunk_texts=chunk_texts,
+        vectors=vectors,
+        model="text-embedding-ada-002",
+        created_user="system",
+    )
+    print(f"RAG saved: {rag_result}")
 
 except Exception as e:
     print(f"Failed to connect: {e}")
