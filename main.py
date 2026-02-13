@@ -192,24 +192,16 @@ if "chat_history" not in st.session_state:
     st.session_state.chat_history = []
 
 #履歴の表示
-if st.session_state.chat_history:
-    st.write("履歴")
-    for q, a in st.session_state.chat_history:
-        st.write(f"Q: {q}")
-        st.write(f"A: {a}")
+st.write("履歴")
+for q, a in st.session_state.chat_history:
+    st.write(f"Q: {q}")
+    st.write(f"A: {a}")
 
 question = st.text_input("質問を入力")
 
 #LLMへ質問をする
 if st.button("送信") and question:
-    # TODO:会話履歴を記録したRAGでLLMを生成する
-    # 日次の記録を保管する(DB)
-    # Agentsで専門的に特化したアドバイスを行う。
-    # 利用目的に応じで回答の精度を分ける
-    # 1日のデータは生データ(JSONで)
-    # RAGは１ヶ月分だけデータとしてまとめる。それ以上は入れない
-    # Agentsでカテゴリ別で用意しそれぞれにRAGデータを入れる
-    # 過去のデータは必要に応じてRAG化する
+    
     stress_rag_chain_history=[]
     meals_rag_chain_history=[]
     execrise_rag_chain_history=[]
@@ -281,17 +273,3 @@ if st.button("送信") and question:
     print(f"回答：{answer}")
     #履歴
     st.session_state.chat_history.append((question, answer))
-
-# st.subheader("入力内容の確認")
-# st.write(
-#     {
-#         "日付": str(today),
-#         "利用目的": purpose,
-#         "食事": {"朝": breakfast, "昼": lunch, "夜": dinner, "間食": snack},
-#         "睡眠時間(時間)": sleep_hours,
-#         "水分量(ml)": water_ml,
-#         "運動": exercise,
-#         "ストレス度": stress,
-#         "気分": mood,
-#     }
-# )
