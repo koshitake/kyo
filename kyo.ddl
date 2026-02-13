@@ -39,7 +39,7 @@ CREATE TABLE kyo.daily_helth (
 ## rag元データテーブル(生テキスト)
 CREATE TABLE kyo.daily_rag_sources (
   id bigserial PRIMARY KEY,
-  uid bigint NOT NULL,
+  uid uuid NOT NULL,
   category_id int NOT NULL,
   record_at date NOT NULL,
   rag_text text NOT NULL,

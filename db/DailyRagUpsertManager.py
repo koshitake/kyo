@@ -6,7 +6,7 @@ from db.DBManager import DBManager
 class DailyRagUpsertManager(DBManager):
     def execute_query(
         self,
-        user_id: int,
+        user_id: str,
         category_id: int,
         record_at,
         rag_text: str,

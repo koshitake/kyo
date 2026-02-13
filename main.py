@@ -2,26 +2,19 @@
 import streamlit as st
 import os
 from dotenv import load_dotenv
-from langchain.prompts import PromptTemplate, ChatPromptTemplate, MessagesPlaceholder
-from langchain.schema import SystemMessage, HumanMessage, Document
+from langchain.schema import SystemMessage, HumanMessage, AIMessage
 from langchain_openai import ChatOpenAI
 from langchain.output_parsers import PydanticOutputParser
-from langchain.chains import create_history_aware_retriever, create_retrieval_chain
-from langchain.chains.combine_documents import create_stuff_documents_chain
-from langchain.text_splitter import CharacterTextSplitter
-from langchain.embeddings.openai import OpenAIEmbeddings
-from langchain.vectorstores import Chroma
+from langchain.tools import Tool
+from langchain.agents import AgentType, initialize_agent
 
 from utils.NutrientsLLM import NutrientsLLM
 from utils.HelthCareLLM import HelthCareLLM
 from db.DailyHealthQueryManager import DailyHealthQueryManager
-from db.DailyRagUpsertManager import DailyRagUpsertManager
 
-import constants.ChatOpenAI as ctchat
-import constants.HelthCare as hc
 import constants.PurposeOfUse as pou
-import constants.ConsulationHelth as cc
 
+from initialize import Initialize
 # ===========================
 # 初期処理
 # ===========================
@@ -52,81 +45,34 @@ load_dotenv()
 
 DBURL=os.getenv("DATABASE_URL")
 
-dhqm = DailyHealthQueryManager()
-result = dhqm.query('google','1','2026-02-04')
-print(result)
-try:
-    # 健康データからRAGがなければ生成
-    # SQLで存在チェック
-    # なければRAG化
-    # 生データとRAGをDBへ書き込み
-    # record_at
-    # category
-    # uuid
-    # 睡眠
-    # 水分
-    # ストレス
-    # 気分
-    # 運動
+if not "initialized" in st.session_state : 
+    st.session_state.initialized = True
 
-    d = cc.DAILY_RAG_BASE_DATA % ("2024-02-12", "stress", result[0])
-    d2 = cc.DAILY_RAG_BASE_DATA % ("2024-02-12", "meals", result[0])
-    d3 = cc.DAILY_RAG_BASE_DATA % ("2024-02-12", "exercise", result[0])
-    d4 = cc.DAILY_RAG_BASE_DATA % ("2024-02-12", "general", result[0])
+
+    dhqm = DailyHealthQueryManager()
+    result = dhqm.query('google','1','2026-02-04')
+
+    print(result)
+    print(f"日付:{result[3]}")
+
+    ragsdata={}
+    init = Initialize()
+
+    dbragdata = {
+        "uid"  : result[0],
+        "date" : result[3],
+        "meal" : result[4],
+        "water" : result[5],
+        "sleep_hour" : result[9],
+        "stress_level":result[10],
+        "mood":result[11],
+        "exercise":result[12] 
+    }
     
-    
-    s = cc.DAILY_STRESS_RAG % (result[9], result[10], result[11])
-    s2 = cc.DAILY_MEAL_RAG % (result[4], result[5])
-    s3 = cc.DAILY_EXERCISE_RAG % (result[9], result[5], result[12])
-    s4 = cc.DAILY_GENERAL_RAG % (result[4], result[9], result[5], result[10], result[11], result[12])
-    # 相談チャットのLLMに読ませる(一月分)
-    aa = f"stress:{d}\n{s}"
-    aa2 = f"meals:{d2}\n{s2}"
-    aa3 = f"exercise:{d3}\n{s3}"
-    aa4 = f"general:{d4}\n{s4}"
-    print(aa)
-    print(aa2)
-    print(aa3)
-    print(aa4)
-
-    #RAG化
-    docs = [Document(page_content=aa)]
-    text_splitter = CharacterTextSplitter(
-            chunk_size=500,
-            chunk_overlap=50,
-            separator="\n",
-        )
-    splitted_pages = text_splitter.split_documents(docs)
-    print(f"split_pages count: {len(splitted_pages)}")
-    embeddings = OpenAIEmbeddings(
-        model="text-embedding-ada-002",
-    )
-    # Documentオブジェクトから本文(text)だけを取り出す
-    chunk_texts = []
-    for chunk_doc in splitted_pages:
-        chunk_texts.append(chunk_doc.page_content)
-
-    print(chunk_texts)
-
-    # 取り出した本文ごとにベクトル化する
-    vectors = embeddings.embed_documents(chunk_texts) 
-    #print(vectors)
-    drqm = DailyRagUpsertManager()
-    rag_result = drqm.query(
-        user_id=result[13],
-        category_id=1,
-        record_at=result[3],
-        rag_text=aa,
-        chunk_texts=chunk_texts,
-        vectors=vectors,
-        model="text-embedding-ada-002",
-        created_user="system",
-    )
-    print(f"RAG saved: {rag_result}")
-
-except Exception as e:
-    print(f"Failed to connect: {e}")
-
+    st.session_state.stress_rag_chain = init.load_rag_data("stress",dbragdata)
+    st.session_state.meals_rag_chain = init.load_rag_data("meals",dbragdata)
+    st.session_state.exercise_rag_chain = init.load_rag_data("exercise",dbragdata)
+    st.session_state.general_rag_chain = init.load_rag_data("general",dbragdata)
 
 # ===========================
 # 描画処理
@@ -253,6 +199,7 @@ if st.session_state.chat_history:
         st.write(f"A: {a}")
 
 question = st.text_input("質問を入力")
+
 #LLMへ質問をする
 if st.button("送信") and question:
     # TODO:会話履歴を記録したRAGでLLMを生成する
@@ -263,7 +210,37 @@ if st.button("送信") and question:
     # RAGは１ヶ月分だけデータとしてまとめる。それ以上は入れない
     # Agentsでカテゴリ別で用意しそれぞれにRAGデータを入れる
     # 過去のデータは必要に応じてRAG化する
-    answer = "今は簡易版のため、ここに回答が表示されます。"
+    stress_rag_chain_history=[]
+
+    stress_rag_chain = st.session_state.stress_rag_chain
+
+    def stress_doc_chain(param):
+        ai_msg = stress_rag_chain.invoke({"input": param, "chat_history": stress_rag_chain_history})
+        stress_rag_chain_history.extend([HumanMessage(content=param), AIMessage(content=ai_msg["answer"])])
+        return ai_msg["answer"]
+
+    stress_doc_tool = Tool.from_function(
+        func=stress_doc_chain,
+        name="ストレスに関する情報を参照するTool",
+        description="ストレスに関する質問に関して情報を参照したい場合に使う"
+    )
+
+    llm = ChatOpenAI(model_name="gpt-4o-mini", temperature=0.7)
+
+    tools = [
+        stress_doc_tool,
+    ]
+
+    agent_executor = initialize_agent(
+        llm=llm,
+        tools=tools,
+        agent=AgentType.ZERO_SHOT_REACT_DESCRIPTION,
+        verbose=True
+    )
+
+    answer = agent_executor.run(question)
+    print(f"回答：{answer}")
+    #履歴
     st.session_state.chat_history.append((question, answer))
 
 # st.subheader("入力内容の確認")

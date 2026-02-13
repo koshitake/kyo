@@ -28,13 +28,19 @@ SYSTEM_MESSAGE = """
 DAILY_RAG_BASE_DATA="[日付:%s] [category: %s] [uid: %s]"
 
 #ストレスに関するアドバイス
-DAILY_STRESS_RAG="睡眠: %sh / ストレス: %s/5 / 気分: %s"
+DAILY_STRESS_RAG="睡眠時間: %sh / ストレスレベル: %s (最大:5) / 今日の気分: %s / 運動内容: %s"
 
 #食事のアドバイス
-DAILY_MEAL_RAG="食事:%s / 水分: %sml"
+DAILY_MEAL_RAG="食事内容:%s / 水分量: %sml"
 
 #運動のアドバイス
-DAILY_EXERCISE_RAG="睡眠: %sh / 水分: %sml / 運動: %s"
+DAILY_EXERCISE_RAG="睡眠時間: %sh / 水分量: %sml / 運動内容: %s"
 
 #その他のアドバイス
-DAILY_GENERAL_RAG="食事:%s / 睡眠: %sh / 水分: %sml / ストレス: %s/5 / 気分: %s / 運動: %s"
+DAILY_GENERAL_RAG="食事内容:%s / 睡眠時間: %sh / 水分量: %sml / ストレスレベル: %s (最大:5) / 今日の気分: %s / 運動内容: %s"
+
+#
+CATEGORY_STRESS=1
+CATEGORY_MEAL=2
+CATEGORY_EXERCICE=3
+CATEGORY_GENERAL=4
