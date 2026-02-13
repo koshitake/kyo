@@ -8,13 +8,18 @@ class DailyRagUpsertManager(DBManager):
         self,
         user_id: str,
         category_id: int,
-        record_at,
-        rag_text: str,
-        chunk_texts: list[str],
-        vectors: list[list[float]],
+        record_at=None,
+        rag_text: str = "",
+        chunk_texts: list[str] | None = None,
+        vectors: list[list[float]] | None = None,
         model: str = "text-embedding-ada-002",
         created_user: str = "system",
     ):
+        if chunk_texts is None:
+            chunk_texts = []
+        if vectors is None:
+            vectors = []
+
         register_vector(self.connection)
 
         # 元テキストを保存し、source_idを取得する

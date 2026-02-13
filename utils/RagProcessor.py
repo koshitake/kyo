@@ -1,9 +1,7 @@
 from langchain.text_splitter import CharacterTextSplitter
 from langchain.embeddings.openai import OpenAIEmbeddings
-
 from langchain_community.vectorstores import Chroma
 import constants.ChatOpenAI as cc
-
 
 class RagProcessor:
 
@@ -23,7 +21,6 @@ class RagProcessor:
         chunk_texts = self.text_splitter.split_text(text)
         vectors = self.embeddings.embed_documents(chunk_texts)
 
-        # ★ここが重要
         vectorstore = Chroma(
             collection_name=category,
             embedding_function=self.embeddings
@@ -33,8 +30,7 @@ class RagProcessor:
         vectorstore.add_texts(chunk_texts)
         # retrieverを作成
         retriever = vectorstore.as_retriever(search_kwargs={"k":5})        
-
-
+        
         return {
             "chunk_texts": chunk_texts,
             "vectors": vectors,

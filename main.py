@@ -55,9 +55,7 @@ if not "initialized" in st.session_state :
     print(result)
     print(f"日付:{result[3]}")
 
-    ragsdata={}
     init = Initialize()
-
     dbragdata = {
         "uid"  : result[0],
         "date" : result[3],
@@ -191,21 +189,23 @@ st.subheader("相談チャット")
 if "chat_history" not in st.session_state:
     st.session_state.chat_history = []
 
-#履歴の表示
-st.write("履歴")
-for q, a in st.session_state.chat_history:
-    st.write(f"Q: {q}")
-    st.write(f"A: {a}")
+# 履歴の表示
+for message in st.session_state.chat_history:
+    with st.chat_message(message["role"]):
+        st.markdown(message["content"])
 
-question = st.text_input("質問を入力")
+question = st.chat_input("質問を入力")
 
-#LLMへ質問をする
-if st.button("送信") and question:
-    
-    stress_rag_chain_history=[]
-    meals_rag_chain_history=[]
-    execrise_rag_chain_history=[]
-    general_rag_chain_history=[]
+# LLMへ質問をする
+if question:
+    st.session_state.chat_history.append({"role": "user", "content": question})
+    with st.chat_message("user"):
+        st.markdown(question)
+
+    stress_rag_chain_history = []
+    meals_rag_chain_history = []
+    execrise_rag_chain_history = []
+    general_rag_chain_history = []
 
     stress_rag_chain = st.session_state.stress_rag_chain
     meals_rag_chain = st.session_state.meals_rag_chain
@@ -216,14 +216,17 @@ if st.button("送信") and question:
         ai_msg = stress_rag_chain.invoke({"input": param, "chat_history": stress_rag_chain_history})
         stress_rag_chain_history.extend([HumanMessage(content=param), AIMessage(content=ai_msg["answer"])])
         return ai_msg["answer"]
+
     def meals_rag_doc_chain(param):
         ai_msg = meals_rag_chain.invoke({"input": param, "chat_history": meals_rag_chain_history})
         meals_rag_chain_history.extend([HumanMessage(content=param), AIMessage(content=ai_msg["answer"])])
         return ai_msg["answer"]
+
     def execrise_rag_doc_chain(param):
         ai_msg = execrise_rag_chain.invoke({"input": param, "chat_history": execrise_rag_chain_history})
         execrise_rag_chain_history.extend([HumanMessage(content=param), AIMessage(content=ai_msg["answer"])])
         return ai_msg["answer"]
+
     def general_rag_doc_chain(param):
         ai_msg = general_rag_chain.invoke({"input": param, "chat_history": general_rag_chain_history})
         general_rag_chain_history.extend([HumanMessage(content=param), AIMessage(content=ai_msg["answer"])])
@@ -232,44 +235,41 @@ if st.button("送信") and question:
     stress_doc_tool = Tool.from_function(
         func=stress_rag_doc_chain,
         name="ストレスに関する情報を参照するTool",
-        description="ストレスに関する質問に関して情報を参照したい場合に使う"
+        description="ストレスに関する質問に関して情報を参照したい場合に使う",
     )
 
     meals_doc_tool = Tool.from_function(
         func=meals_rag_doc_chain,
         name="食事の内容関する情報を参照するTool",
-        description="食事の内容や改善に関する質問に関して情報を参照したい場合に使う"
+        description="食事の内容や改善に関する質問に関して情報を参照したい場合に使う",
     )
 
     execrise_doc_tool = Tool.from_function(
         func=execrise_rag_doc_chain,
         name="運動の内容に関する情報を参照するTool",
-        description="運動の内容ややり方に関する質問に関して情報を参照したい場合に使う"
+        description="運動の内容ややり方に関する質問に関して情報を参照したい場合に使う",
     )
 
     general_doc_tool = Tool.from_function(
         func=general_rag_doc_chain,
         name="一般的な質問に関する情報を参照するTool",
-        description="一般的な質問関して情報を参照したい場合に使う"
+        description="一般的な質問関して情報を参照したい場合に使う",
     )
 
     llm = ChatOpenAI(model_name="gpt-4o-mini", temperature=0.7)
-
-    tools = [
-        stress_doc_tool,
-        meals_doc_tool,
-        execrise_doc_tool,
-        general_doc_tool
-    ]
+    tools = [stress_doc_tool, meals_doc_tool, execrise_doc_tool, general_doc_tool]
 
     agent_executor = initialize_agent(
         llm=llm,
         tools=tools,
         agent=AgentType.ZERO_SHOT_REACT_DESCRIPTION,
-        verbose=True
+        verbose=True,
     )
 
-    answer = agent_executor.run(question)
+    with st.chat_message("assistant"):
+        with st.spinner("回答を生成しています..."):
+            answer = agent_executor.run(question)
+        st.markdown(answer)
+
     print(f"回答：{answer}")
-    #履歴
-    st.session_state.chat_history.append((question, answer))
+    st.session_state.chat_history.append({"role": "assistant", "content": answer})

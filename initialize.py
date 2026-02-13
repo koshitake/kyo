@@ -6,17 +6,22 @@ from langchain.chains.combine_documents import create_stuff_documents_chain
 
 from utils.RagProcessor import RagProcessor
 from db.DailyRagUpsertManager import DailyRagUpsertManager
+from db.DailyRagSelectManager import DailyRagSelectManager
 import constants.ConsulationHelth as ch
 
 
+#
+# 初期処理のクラス
+#
 class Initialize:
-    
 
     #
     # RAGのデータ
     # 
     def load_rag_data(self, category_name:str, dbdata: dict):
+        category_id = self._get_category_id(category_name)
 
+        #共通データ
         base_data=f"{category_name}:{ch.DAILY_RAG_BASE_DATA % (dbdata['date'], category_name, dbdata['uid'])}"
 
         if category_name == "stress":
@@ -55,7 +60,7 @@ class Initialize:
             drqm = DailyRagUpsertManager()
             rag_result = drqm.query(
                 user_id=dbdata["uid"],
-                category_id=ch.CATEGORY_STRESS,
+                category_id=category_id,
                 record_at=dbdata["date"],
                 rag_text=rag_text,
                 chunk_texts=chunk_texts,
@@ -64,6 +69,21 @@ class Initialize:
                 created_user="system",
             )
             print(f"RAG saved: {rag_result}")
+
+            #1ヶ月分のRAGデータを読み出す
+            drsm = DailyRagSelectManager()
+            monthly_rags = drsm.query(
+                user_id=dbdata["uid"],
+                category_id=category_id,
+                base_date=dbdata["date"],
+            )
+
+            monthly_rag_text = "\n".join([row["rag_text"] for row in monthly_rags])
+            if monthly_rag_text:
+                rag_data = rag_processor.process_text(monthly_rag_text, category_name)
+                print(f"monthly rag count: {len(monthly_rags)}")
+            else:
+                print("monthly rag count: 0 (fallback: today only)")
 
             #会話履歴とRAGをふくめRetriversを作成
             question_generator_template = "会話履歴と最新の入力をもとに、会話履歴なしでも理解できる独立した入力テキストを生成してください。"
@@ -99,3 +119,12 @@ class Initialize:
             return rag_chain
         except Exception as e:
             print(f"Failed to connect: {e}")
+
+    def _get_category_id(self, category_name: str) -> int:
+        if category_name == "stress":
+            return ch.CATEGORY_STRESS
+        if category_name == "meals":
+            return ch.CATEGORY_MEAL
+        if category_name == "exercise":
+            return ch.CATEGORY_EXERCICE
+        return ch.CATEGORY_GENERAL

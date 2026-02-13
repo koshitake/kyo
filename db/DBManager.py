@@ -3,9 +3,7 @@ import os
 from dotenv import load_dotenv
 import psycopg2
 
-
 load_dotenv()
-
 
 class DBManager(ABC):
     """Connection/transaction/error handling is centralized here.
