@@ -2,23 +2,20 @@ from psycopg2.extras import execute_values
 from pgvector.psycopg2 import register_vector
 from db.DBManager import DBManager
 
-
+#
+# 当日のRAGデータを登録または更新するクラス
+#
+#
 class DailyRagUpsertManager(DBManager):
-    def execute_query(
-        self,
-        user_id: str,
-        category_id: int,
-        record_at=None,
-        rag_text: str = "",
-        chunk_texts: list[str] | None = None,
-        vectors: list[list[float]] | None = None,
-        model: str = "text-embedding-ada-002",
-        created_user: str = "system",
-    ):
-        if chunk_texts is None:
-            chunk_texts = []
-        if vectors is None:
-            vectors = []
+    def execute_query(self, params: dict):
+        user_id = params["user_id"]
+        category_id = params["category_id"]
+        record_at = params["record_at"]
+        rag_text = params["rag_text"]
+        chunk_texts = params["chunk_texts"]
+        vectors = params["vectors"]
+        model = params["model"]
+        created_user = params["created_user"]
 
         register_vector(self.connection)
 

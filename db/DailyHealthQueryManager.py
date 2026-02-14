@@ -1,6 +1,9 @@
 from db.DBManager import DBManager
 
-
+#
+# 当日の健康データを読み込むクラス
+#
+#
 class DailyHealthQueryManager(DBManager):
     def execute_query(self, oauth_provider: str, oauth_subject: str, record_at: str):
         self.cursor.execute(

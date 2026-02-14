@@ -8,10 +8,9 @@ from langchain.agents import AgentType, initialize_agent
 from utils.NutrientsLLM import NutrientsLLM
 from utils.HelthCareLLM import HelthCareLLM
 from utils.AgentTools import AgentTools
-from db.DailyHealthQueryManager import DailyHealthQueryManager
 
 import constants.PurposeOfUse as pou
-
+import constants.ChatOpenAI as co
 from initialize import Initialize
 # ===========================
 # 初期処理
@@ -46,29 +45,16 @@ DBURL=os.getenv("DATABASE_URL")
 if not "initialized" in st.session_state : 
     st.session_state.initialized = True
 
-
-    dhqm = DailyHealthQueryManager()
-    result = dhqm.query('google','1','2026-02-04')
-
-    print(result)
-    print(f"日付:{result[3]}")
-
+    #-------------
+    # 初期化処理
+    #-------------
     init = Initialize()
-    dbragdata = {
-        "uid"  : result[0],
-        "date" : result[3],
-        "meal" : result[4],
-        "water" : result[5],
-        "sleep_hour" : result[9],
-        "stress_level":result[10],
-        "mood":result[11],
-        "exercise":result[12] 
-    }
-    
-    st.session_state.stress_rag_chain = init.load_rag_data("stress",dbragdata)
-    st.session_state.meals_rag_chain = init.load_rag_data("meals",dbragdata)
-    st.session_state.exercise_rag_chain = init.load_rag_data("exercise",dbragdata)
-    st.session_state.general_rag_chain = init.load_rag_data("general",dbragdata)
+
+    init_result = init.run(oauth_provider="google", oauth_subject="1")
+    st.session_state.today_health_data = init_result["dbdata"]
+    rag_chains = init_result["rag_chains"]
+    for chain_name, chain in rag_chains.items():
+        st.session_state[chain_name] = chain
 
 # ===========================
 # 描画処理
@@ -99,10 +85,46 @@ else :
 #  食事の入力と栄養素の計算
 # ===========================
 st.subheader("食事")
-breakfast = st.text_input("朝", placeholder="例: ごはんと卵")
-lunch = st.text_input("昼", placeholder="例: サンドイッチ")
-dinner = st.text_input("夜", placeholder="例: 鶏肉と野菜")
-snack = st.text_input("間食・飲み物など", placeholder="例: ナッツ")
+today_health_data = st.session_state.get("today_health_data", {})
+
+default_breakfast = ""
+default_lunch = ""
+default_dinner = ""
+default_snack = ""
+
+meal_text = today_health_data.get("meal")
+if meal_text is not None:
+    meal_text = str(meal_text)
+
+    # 例: 朝:パンケーキ/昼:パスタ/夜:鍋料理/間食:ケーキ
+    normalized_meal_text = (
+        meal_text.replace(" 昼:", "/昼:")
+        .replace(" 夜:", "/夜:")
+        .replace(" 間食:", "/間食:")
+    )
+
+    meal_parts = normalized_meal_text.split("/")
+    for meal_part in meal_parts:
+        if ":" not in meal_part:
+            continue
+
+        meal_key, meal_value = meal_part.split(":", 1)
+        meal_key = meal_key.strip()
+        meal_value = meal_value.strip()
+
+        if meal_key == "朝":
+            default_breakfast = meal_value
+        elif meal_key == "昼":
+            default_lunch = meal_value
+        elif meal_key == "夜":
+            default_dinner = meal_value
+        elif meal_key == "間食":
+            default_snack = meal_value
+
+breakfast = st.text_input("朝", value=default_breakfast, placeholder="例: ごはんと卵")
+lunch = st.text_input("昼", value=default_lunch, placeholder="例: サンドイッチ")
+dinner = st.text_input("夜", value=default_dinner, placeholder="例: 鶏肉と野菜")
+snack = st.text_input("間食・飲み物など", value=default_snack, placeholder="例: ナッツ")
 
 meal = f"""
         Breakfast:{breakfast}
@@ -127,20 +149,47 @@ st.write(f"■厚生労働省が定めている１日の目安[カロリー:2,20
 # ===========================
 # 日々の体調の入力
 # ===========================
+default_sleep_hour = today_health_data.get("sleep_hour")
+if default_sleep_hour is None:
+    default_sleep_hour = 0.0
+default_sleep_hour = float(default_sleep_hour)
+
+default_water = today_health_data.get("water")
+if default_water is None:
+    default_water = 0
+default_water = int(default_water)
+
+default_exercise = today_health_data.get("exercise")
+if default_exercise is None:
+    default_exercise = ""
+
+default_stress = today_health_data.get("stress_level")
+if default_stress is None:
+    default_stress = 0
+default_stress = int(default_stress)
+
+default_mood = today_health_data.get("mood")
+if default_mood is None:
+    default_mood = ""
+
 st.subheader("睡眠時間(入力)")
-sleep_hours = st.number_input("睡眠時間(時間)", min_value=0.0, max_value=24.0, step=0.5)
+sleep_hours = st.number_input("睡眠時間(時間)", min_value=0.0, max_value=24.0, step=0.5, value=default_sleep_hour)
 
 st.subheader("水分")
-water_ml = st.number_input("水分量(ml)", min_value=0, max_value=5000, step=100)
+water_ml = st.number_input("水分量(ml)", min_value=0, max_value=5000, step=100, value=default_water)
 
 st.subheader("運動")
-exercise = st.text_input("運動内容", placeholder="例: ランニング20分")
+exercise = st.text_input("運動内容", value=default_exercise, placeholder="例: ランニング20分")
 
 st.subheader("今日のストレス度")
-stress = st.selectbox("ストレス度(0-5)", [0, 1, 2, 3, 4, 5])
+stress_options = [0, 1, 2, 3, 4, 5]
+stress_index = 0
+if default_stress in stress_options:
+    stress_index = stress_options.index(default_stress)
+stress = st.selectbox("ストレス度(0-5)", stress_options, index=stress_index)
 
 st.subheader("今日の気分")
-mood = st.text_input("気分", placeholder="例: 今日はだるい 肩が凝っている")
+mood = st.text_input("気分", value=default_mood, placeholder="例: 今日はだるい 肩が凝っている")
 
 
 # ===========================
@@ -200,7 +249,6 @@ if question:
     with st.chat_message("user"):
         st.markdown(question)
 
-    #---これを別クラスで再利用できるようにする--------------
     agent_tools = AgentTools(
         st.session_state.stress_rag_chain,
         st.session_state.meals_rag_chain,
@@ -208,9 +256,7 @@ if question:
         st.session_state.general_rag_chain,
     )
     tools = agent_tools.build_tools()
-    #-------------------------ここまで
-
-    llm = ChatOpenAI(model_name="gpt-4o-mini", temperature=0.7)
+    llm = ChatOpenAI(model_name=co.MODEL_NAME, temperature=co.TEMPERATURE)
 
     agent_executor = initialize_agent(
         llm=llm,

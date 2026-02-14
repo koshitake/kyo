@@ -1,6 +1,9 @@
 from db.DBManager import DBManager
 
-
+#
+# 1月分のRAGを読み込むSQL
+#
+# 
 class DailyRagSelectManager(DBManager):
     def execute_query(
         self,
@@ -21,4 +24,7 @@ class DailyRagSelectManager(DBManager):
             (user_id, category_id, base_date, base_date),
         )
         rows = self.cursor.fetchall()
-        return [{"record_at": row[0], "rag_text": row[1]} for row in rows]
+        result = []
+        for row in rows:
+            result.append({"record_at": row[0], "rag_text": row[1]})
+        return result

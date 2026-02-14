@@ -2,7 +2,11 @@ from langchain.text_splitter import CharacterTextSplitter
 from langchain.embeddings.openai import OpenAIEmbeddings
 from langchain_community.vectorstores import Chroma
 import constants.ChatOpenAI as cc
+import constants.RAGBuilder as rag
 
+#
+# RAGとRetriverを作成するクラス
+#
 class RagProcessor:
 
     def __init__(self):
@@ -29,7 +33,7 @@ class RagProcessor:
         # RAGの生データを投入
         vectorstore.add_texts(chunk_texts)
         # retrieverを作成
-        retriever = vectorstore.as_retriever(search_kwargs={"k":5})        
+        retriever = vectorstore.as_retriever(search_kwargs={"k":rag.SEARCH_KWARGS})        
         
         return {
             "chunk_texts": chunk_texts,

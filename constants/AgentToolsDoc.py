@@ -1,0 +1,12 @@
+STRESS_DOC_NAME="ストレスに関する情報を参照するTool"
+STRESS_DOC_DESC="ストレスに関する質問に関して情報を参照したい場合に使う"
+
+
+MEALS_DOC_NAME="食事の内容関する情報を参照するTool"
+MEALS_DOC_DESC="食事の内容や改善に関する質問に関して情報を参照したい場合に使う"
+
+EXERCISE_DOC_NAME="運動の内容に関する情報を参照するTool"
+EXERCISE_DOC_DESC="運動の内容ややり方に関する質問に関して情報を参照したい場合に使う"
+
+GENERAL_DOC_NAME="一般的な質問に関する情報を参照するTool"
+GENERAL_DOC_DESC="一般的な質問関して情報を参照したい場合に使う"

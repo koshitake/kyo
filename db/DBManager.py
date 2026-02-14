@@ -5,10 +5,12 @@ import psycopg2
 
 load_dotenv()
 
+#
+# DB管理クラス
+#
 class DBManager(ABC):
-    """Connection/transaction/error handling is centralized here.
-    Subclasses implement only SQL logic in execute_query().
-    """
+    # Connection/transaction/error handling is centralized here.
+    # Subclasses implement only SQL logic in execute_query().
 
     def __init__(self, db_url: str | None = None):
         self.db_url = db_url or os.getenv("DATABASE_URL")
@@ -19,7 +21,7 @@ class DBManager(ABC):
 
     @abstractmethod
     def execute_query(self, *args, **kwargs):
-        """Implement SQL processing in subclasses."""
+        # Implement SQL processing in subclasses.
         raise NotImplementedError
 
     def query(self, *args, **kwargs):

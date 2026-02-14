@@ -1,130 +1,96 @@
-import os
-from langchain.prompts import ChatPromptTemplate, MessagesPlaceholder
-from langchain_openai import ChatOpenAI
-from langchain.chains import create_history_aware_retriever, create_retrieval_chain
-from langchain.chains.combine_documents import create_stuff_documents_chain
-
-from utils.RagProcessor import RagProcessor
-from db.DailyRagUpsertManager import DailyRagUpsertManager
-from db.DailyRagSelectManager import DailyRagSelectManager
-import constants.ConsulationHelth as ch
+from utils.MonthlyRagLoader import MonthlyRagLoader
+from utils.RagRetrieverChainBuilder import RagRetrieverChainBuilder
+from utils.TodayRagSaver import TodayRagSaver
+from db.CategoryMasterQueryManager import CategoryMasterQueryManager
+from db.DailyHealthQueryManager import DailyHealthQueryManager
+from datetime import date
+from langchain.retrievers import MergerRetriever
 
 
 #
 # 初期処理のクラス
 #
 class Initialize:
+    def __init__(self):
+        self.category_map = self._load_category_map()
+
+    def _load_category_map(self) -> dict:
+        cqm = CategoryMasterQueryManager()
+        rows = cqm.query()
+        category_map = {}
+        for row in rows:
+            category_map[row["name"].lower()] = row["category_id"]
+        return category_map
+
+    def _get_category_id(self, category_name: str) -> int:
+        key = category_name.lower()
+        if key not in self.category_map:
+            available = ", ".join(sorted(self.category_map.keys()))
+            raise ValueError(f"category_master に '{category_name}' がありません。利用可能: {available}")
+        return self.category_map[key]
 
     #
-    # RAGのデータ
+    # 当日のRAGの登録と、RAGのデータを読み込みます。
     # 
-    def load_rag_data(self, category_name:str, dbdata: dict):
-        category_id = self._get_category_id(category_name)
-
-        #共通データ
-        base_data=f"{category_name}:{ch.DAILY_RAG_BASE_DATA % (dbdata['date'], category_name, dbdata['uid'])}"
-
-        if category_name == "stress":
-            rag_text = f"""
-                {base_data}
-                {ch.DAILY_STRESS_RAG % (dbdata["sleep_hour"], dbdata["stress_level"], dbdata["mood"], dbdata["exercise"])}
-            """
-        elif category_name == "meals":
-            rag_text = f"""
-                {base_data}
-                {ch.DAILY_MEAL_RAG % (dbdata["meal"], dbdata["water"])}
-            """
-        elif category_name == "exercise":
-            rag_text = f"""
-                {base_data}
-                {ch.DAILY_EXERCISE_RAG % (dbdata["sleep_hour"], dbdata["water"], dbdata["exercise"])}
-            """
-        else:
-            rag_text = f"""
-                {base_data}
-                {ch.DAILY_GENERAL_RAG % (dbdata["meal"], dbdata["sleep_hour"], dbdata["water"], dbdata["stress_level"], dbdata["mood"], dbdata["exercise"])}
-            """
+    # 
+    def load_rag_data(self, dbdata: dict):
+        rag_chains = {}
+        categories = ["stress", "meals", "exercise", "general"]
+        today_rag_saver = TodayRagSaver()
+        monthly_loader = MonthlyRagLoader()
+        chain_builder = RagRetrieverChainBuilder()
 
         try:
-            print(rag_text)
-            #RAGとRetriver-------------------
-            rag_processor = RagProcessor()
-            rag_data = rag_processor.process_text(rag_text,category_name)
-            # 生データ
-            chunk_texts = rag_data["chunk_texts"]
-            # vectorデータ
-            vectors = rag_data["vectors"]
-            print(f"split_pages count: {rag_data['chunk_count']}")
-            print(chunk_texts)
-            #DBへ保存する
-            drqm = DailyRagUpsertManager()
-            rag_result = drqm.query(
-                user_id=dbdata["uid"],
-                category_id=category_id,
-                record_at=dbdata["date"],
-                rag_text=rag_text,
-                chunk_texts=chunk_texts,
-                vectors=vectors,
-                model=rag_data["model"],
-                created_user="system",
-            )
-            print(f"RAG saved: {rag_result}")
+            for category_name in categories:
+                category_id = self._get_category_id(category_name)
 
-            #1ヶ月分のRAGデータを読み出す
-            drsm = DailyRagSelectManager()
-            monthly_rags = drsm.query(
-                user_id=dbdata["uid"],
-                category_id=category_id,
-                base_date=dbdata["date"],
-            )
+                # 1. 当日RAG更新
+                today_rag_data = today_rag_saver.save(category_name, category_id, dbdata)
 
-            monthly_rag_text = "\n".join([row["rag_text"] for row in monthly_rags])
-            if monthly_rag_text:
-                rag_data = rag_processor.process_text(monthly_rag_text, category_name)
-                print(f"monthly rag count: {len(monthly_rags)}")
-            else:
-                print("monthly rag count: 0 (fallback: today only)")
+                # 2. 1ヶ月分のRAG読み込み
+                rag_data = monthly_loader.load(
+                    uid=dbdata["uid"],
+                    category_id=category_id,
+                    base_date=dbdata["date"],
+                    category_name=category_name,
+                )
 
-            #会話履歴とRAGをふくめRetriversを作成
-            question_generator_template = "会話履歴と最新の入力をもとに、会話履歴なしでも理解できる独立した入力テキストを生成してください。"
-            question_generator_prompt = ChatPromptTemplate.from_messages(
-                [
-                    ("system", question_generator_template),
-                    MessagesPlaceholder("chat_history"),
-                    ("human", "{input}"),
-                ]
-            )
-            llm = ChatOpenAI(model_name="gpt-4o-mini", temperature=0.7)
-            history_aware_retriever = create_history_aware_retriever(
-                llm, rag_data["retriever"], question_generator_prompt
-            )
-            question_answer_template = """
-            あなたは優秀な質問応答アシスタントです。以下のcontextを使用して質問に答えてください。
-            必ず学習したデータを見て解答をしてください
-            不足しているデータがあれば、一般的なデータと学習したデータに基づいて答えてください。
-            また、回答は日本語でフレンドリーに感じで優しく話してください。"
+                # 当日しかない場合はそのデータだけ使う
+                if rag_data is None:
+                    retriever = today_rag_data["retriever"]
+                else:
+                    # 1ヶ月分のデータがあれば当日のデータと付け合わせる
+                    retriever = MergerRetriever(retrievers=[today_rag_data["retriever"], rag_data["retriever"]])
 
-            {context}
-            """
-            question_answer_prompt = ChatPromptTemplate.from_messages(
-                [
-                    ("system", question_answer_template),
-                    MessagesPlaceholder("chat_history"),
-                    ("human", "{input}"),
-                ]
-            )
-            question_answer_chain = create_stuff_documents_chain(llm, question_answer_prompt)
-            rag_chain = create_retrieval_chain(history_aware_retriever, question_answer_chain)
-            print(rag_chain)
-            return rag_chain
+                # 3. Retriever chain 作成
+                rag_chain = chain_builder.build(retriever)
+                rag_chains[f"{category_name}_rag_chain"] = rag_chain
+
+            return rag_chains
         except Exception as e:
             print(f"Failed to connect: {e}")
 
-    def _get_category_id(self, category_name: str) -> int:
-        if category_name == "stress":
-            return ch.CATEGORY_STRESS
-        if category_name == "meals":
-            return ch.CATEGORY_MEAL
-        if category_name == "exercise":
-            return ch.CATEGORY_EXERCICE
-        return ch.CATEGORY_GENERAL
+    def run(self, oauth_provider: str, oauth_subject: str):
+        # 今日の日付を取得
+        record_at = date.today().isoformat()
+
+        # 1. 今日の健康データを取得
+        daily_health_query_manager = DailyHealthQueryManager()
+        daily_health_row = daily_health_query_manager.query(oauth_provider, oauth_subject, record_at)
+        if daily_health_row is None:
+            raise ValueError(f"対象日の健康データがありません: {record_at}")
+
+        dbdata = {
+            "uid": daily_health_row[0],
+            "date": daily_health_row[3],
+            "meal": daily_health_row[4],
+            "water": daily_health_row[5],
+            "sleep_hour": daily_health_row[9],
+            "stress_level": daily_health_row[10],
+            "mood": daily_health_row[11],
+            "exercise": daily_health_row[12],
+        }
+
+        # 2. 今日のRAG更新 + 3. 1ヶ月分RAG読み込み
+        rag_chains = self.load_rag_data(dbdata)
+        return {"dbdata": dbdata, "rag_chains": rag_chains}
