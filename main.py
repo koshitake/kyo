@@ -43,18 +43,19 @@ load_dotenv()
 DBURL=os.getenv("DATABASE_URL")
 
 if not "initialized" in st.session_state : 
-    st.session_state.initialized = True
+    with st.spinner("読み込み中です。しばらくお待ちください..."):
+        st.session_state.initialized = True
 
-    #-------------
-    # 初期化処理
-    #-------------
-    init = Initialize()
+        #-------------
+        # 初期化処理
+        #-------------
+        init = Initialize()
 
-    init_result = init.run(oauth_provider="google", oauth_subject="1")
-    st.session_state.today_health_data = init_result["dbdata"]
-    rag_chains = init_result["rag_chains"]
-    for chain_name, chain in rag_chains.items():
-        st.session_state[chain_name] = chain
+        init_result = init.run(oauth_provider="google", oauth_subject="1")
+        st.session_state.today_health_data = init_result["dbdata"]
+        rag_chains = init_result["rag_chains"]
+        for chain_name, chain in rag_chains.items():
+            st.session_state[chain_name] = chain
 
 # ===========================
 # 描画処理
