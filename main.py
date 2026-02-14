@@ -1,30 +1,20 @@
 # codename:kyo
 import streamlit as st
+import os
 from dotenv import load_dotenv
-from langchain.prompts import PromptTemplate, ChatPromptTemplate, MessagesPlaceholder
-from langchain.schema import SystemMessage, HumanMessage
 from langchain_openai import ChatOpenAI
-from langchain.output_parsers import PydanticOutputParser
-from langchain.chains import create_history_aware_retriever, create_retrieval_chain
-from langchain.chains.combine_documents import create_stuff_documents_chain
+from langchain.agents import AgentType, initialize_agent
+
 from utils.NutrientsLLM import NutrientsLLM
 from utils.HelthCareLLM import HelthCareLLM
-import constants.ChatOpenAI as ctchat
-import constants.HelthCare as hc
+from utils.AgentTools import AgentTools
+
 import constants.PurposeOfUse as pou
-import psycopg2
-
-
+import constants.ChatOpenAI as co
+from initialize import Initialize
 # ===========================
 # 初期処理
 # ===========================
-load_dotenv()
-
-import psycopg2
-from dotenv import load_dotenv
-import os
-
-# Load environment variables from .env
 load_dotenv()
 
 # ====================== 
@@ -51,65 +41,21 @@ load_dotenv()
 # ""
 
 DBURL=os.getenv("DATABASE_URL")
-# Connect to the database
-try:
-    connection = psycopg2.connect(DBURL)
-    print("Connection successful!")
-    
-    # Create a cursor to execute SQL queries
-    cursor = connection.cursor()
 
-    #初期ロード
+if not "initialized" in st.session_state : 
+    with st.spinner("読み込み中です。しばらくお待ちください..."):
+        st.session_state.initialized = True
 
-    # Example query
-    # oauthでユーザーをとるがとりあえず固定
-    # 健康データを取得
-    cursor.execute("SELECT * from kyo.users;")
-    cursor.execute("""
-        select 
-            u.uid,
-            u.name,
-            p.name,
-            h.meal,
-            h.kcal,
-            h.carbo,
-            h.lipid,
-            h.protein,
-            h.sleep_hours,
-            h.stress,
-            h.mood,
-            h.exercise
-        From 
-            kyo.users as u,
-            kyo.purpose_master as p,
-            kyo.daily_helth as h
-        where
-            u.purpose = p.id and
-            u.uid = h.uid and
-            u.oauth_provider='google' and
-            u.oauth_subject='1' and
-            h.record_at='2026-02-04';
-    """)
-    result = cursor.fetchone()
-    print(f"test:{result}")
-    # Close the cursor and connection
-    cursor.close()
-    connection.close()
-    print("Connection closed.")
+        #-------------
+        # 初期化処理
+        #-------------
+        init = Initialize()
 
-    # 健康データからRAGがなければ生成
-    # SQLで存在チェック
-    # なければRAG化
-    # 生データとRAGをDBへ書き込み
-
-    # 相談チャットのLLMに読ませる(一月分)
-
-
-
-
-except Exception as e:
-    print(f"Failed to connect: {e}")
-
+        init_result = init.run(oauth_provider="google", oauth_subject="1")
+        st.session_state.today_health_data = init_result["dbdata"]
+        rag_chains = init_result["rag_chains"]
+        for chain_name, chain in rag_chains.items():
+            st.session_state[chain_name] = chain
 
 # ===========================
 # 描画処理
@@ -140,10 +86,46 @@ else :
 #  食事の入力と栄養素の計算
 # ===========================
 st.subheader("食事")
-breakfast = st.text_input("朝", placeholder="例: ごはんと卵")
-lunch = st.text_input("昼", placeholder="例: サンドイッチ")
-dinner = st.text_input("夜", placeholder="例: 鶏肉と野菜")
-snack = st.text_input("間食・飲み物など", placeholder="例: ナッツ")
+today_health_data = st.session_state.get("today_health_data", {})
+
+default_breakfast = ""
+default_lunch = ""
+default_dinner = ""
+default_snack = ""
+
+meal_text = today_health_data.get("meal")
+if meal_text is not None:
+    meal_text = str(meal_text)
+
+    # 例: 朝:パンケーキ/昼:パスタ/夜:鍋料理/間食:ケーキ
+    normalized_meal_text = (
+        meal_text.replace(" 昼:", "/昼:")
+        .replace(" 夜:", "/夜:")
+        .replace(" 間食:", "/間食:")
+    )
+
+    meal_parts = normalized_meal_text.split("/")
+    for meal_part in meal_parts:
+        if ":" not in meal_part:
+            continue
+
+        meal_key, meal_value = meal_part.split(":", 1)
+        meal_key = meal_key.strip()
+        meal_value = meal_value.strip()
+
+        if meal_key == "朝":
+            default_breakfast = meal_value
+        elif meal_key == "昼":
+            default_lunch = meal_value
+        elif meal_key == "夜":
+            default_dinner = meal_value
+        elif meal_key == "間食":
+            default_snack = meal_value
+
+breakfast = st.text_input("朝", value=default_breakfast, placeholder="例: ごはんと卵")
+lunch = st.text_input("昼", value=default_lunch, placeholder="例: サンドイッチ")
+dinner = st.text_input("夜", value=default_dinner, placeholder="例: 鶏肉と野菜")
+snack = st.text_input("間食・飲み物など", value=default_snack, placeholder="例: ナッツ")
 
 meal = f"""
         Breakfast:{breakfast}
@@ -168,20 +150,47 @@ st.write(f"■厚生労働省が定めている１日の目安[カロリー:2,20
 # ===========================
 # 日々の体調の入力
 # ===========================
+default_sleep_hour = today_health_data.get("sleep_hour")
+if default_sleep_hour is None:
+    default_sleep_hour = 0.0
+default_sleep_hour = float(default_sleep_hour)
+
+default_water = today_health_data.get("water")
+if default_water is None:
+    default_water = 0
+default_water = int(default_water)
+
+default_exercise = today_health_data.get("exercise")
+if default_exercise is None:
+    default_exercise = ""
+
+default_stress = today_health_data.get("stress_level")
+if default_stress is None:
+    default_stress = 0
+default_stress = int(default_stress)
+
+default_mood = today_health_data.get("mood")
+if default_mood is None:
+    default_mood = ""
+
 st.subheader("睡眠時間(入力)")
-sleep_hours = st.number_input("睡眠時間(時間)", min_value=0.0, max_value=24.0, step=0.5)
+sleep_hours = st.number_input("睡眠時間(時間)", min_value=0.0, max_value=24.0, step=0.5, value=default_sleep_hour)
 
 st.subheader("水分")
-water_ml = st.number_input("水分量(ml)", min_value=0, max_value=5000, step=100)
+water_ml = st.number_input("水分量(ml)", min_value=0, max_value=5000, step=100, value=default_water)
 
 st.subheader("運動")
-exercise = st.text_input("運動内容", placeholder="例: ランニング20分")
+exercise = st.text_input("運動内容", value=default_exercise, placeholder="例: ランニング20分")
 
 st.subheader("今日のストレス度")
-stress = st.selectbox("ストレス度(0-5)", [0, 1, 2, 3, 4, 5])
+stress_options = [0, 1, 2, 3, 4, 5]
+stress_index = 0
+if default_stress in stress_options:
+    stress_index = stress_options.index(default_stress)
+stress = st.selectbox("ストレス度(0-5)", stress_options, index=stress_index)
 
 st.subheader("今日の気分")
-mood = st.text_input("気分", placeholder="例: 今日はだるい 肩が凝っている")
+mood = st.text_input("気分", value=default_mood, placeholder="例: 今日はだるい 肩が凝っている")
 
 
 # ===========================
@@ -228,37 +237,39 @@ st.subheader("相談チャット")
 if "chat_history" not in st.session_state:
     st.session_state.chat_history = []
 
-#履歴の表示
-if st.session_state.chat_history:
-    st.write("履歴")
-    for q, a in st.session_state.chat_history:
-        st.write(f"Q: {q}")
-        st.write(f"A: {a}")
+# 履歴の表示
+for message in st.session_state.chat_history:
+    with st.chat_message(message["role"]):
+        st.markdown(message["content"])
 
-question = st.text_input("質問を入力")
-#LLMへ質問をする
-if st.button("送信") and question:
-    # TODO:会話履歴を記録したRAGでLLMを生成する
-    # 日次の記録を保管する(DB)
-    # Agentsで専門的に特化したアドバイスを行う。
-    # 利用目的に応じで回答の精度を分ける
-    # 1日のデータは生データ(JSONで)
-    # RAGは１ヶ月分だけデータとしてまとめる。それ以上は入れない
-    # Agentsでカテゴリ別で用意しそれぞれにRAGデータを入れる
-    # 過去のデータは必要に応じてRAG化する
-    answer = "今は簡易版のため、ここに回答が表示されます。"
-    st.session_state.chat_history.append((question, answer))
+question = st.chat_input("質問を入力")
 
-# st.subheader("入力内容の確認")
-# st.write(
-#     {
-#         "日付": str(today),
-#         "利用目的": purpose,
-#         "食事": {"朝": breakfast, "昼": lunch, "夜": dinner, "間食": snack},
-#         "睡眠時間(時間)": sleep_hours,
-#         "水分量(ml)": water_ml,
-#         "運動": exercise,
-#         "ストレス度": stress,
-#         "気分": mood,
-#     }
-# )
+# LLMへ質問をする
+if question:
+    st.session_state.chat_history.append({"role": "user", "content": question})
+    with st.chat_message("user"):
+        st.markdown(question)
+
+    agent_tools = AgentTools(
+        st.session_state.stress_rag_chain,
+        st.session_state.meals_rag_chain,
+        st.session_state.exercise_rag_chain,
+        st.session_state.general_rag_chain,
+    )
+    tools = agent_tools.build_tools()
+    llm = ChatOpenAI(model_name=co.MODEL_NAME, temperature=co.TEMPERATURE)
+
+    agent_executor = initialize_agent(
+        llm=llm,
+        tools=tools,
+        agent=AgentType.ZERO_SHOT_REACT_DESCRIPTION,
+        verbose=True,
+    )
+
+    with st.chat_message("assistant"):
+        with st.spinner("回答を生成しています..."):
+            answer = agent_executor.run(question)
+        st.markdown(answer)
+
+    print(f"回答：{answer}")
+    st.session_state.chat_history.append({"role": "assistant", "content": answer})

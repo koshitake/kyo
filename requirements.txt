@@ -9,6 +9,7 @@ blinker==1.9.0
 cachetools==5.5.2
 certifi==2026.1.4
 charset-normalizer==3.4.4
+chromadb==1.0.13
 click==8.3.1
 dataclasses-json==0.6.7
 distro==1.9.0
@@ -47,6 +48,7 @@ pandas==2.3.3
 pillow==11.3.0
 propcache==0.4.1
 protobuf==5.29.5
+pgvector==0.3.6
 psycopg2-binary==2.9.11
 pyarrow==23.0.0
 pydantic==2.12.5
