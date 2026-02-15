@@ -8,10 +8,13 @@ from langchain.agents import AgentType, initialize_agent
 from utils.NutrientsLLM import NutrientsLLM
 from utils.HelthCareLLM import HelthCareLLM
 from utils.AgentTools import AgentTools
+from utils.TodayRagSaver import TodayRagSaver
 
 import constants.PurposeOfUse as pou
 import constants.ChatOpenAI as co
-from initialize import Initialize
+from LoadHelthData import LoadHelthData
+from db.CategoryMasterQueryManager import CategoryMasterQueryManager
+from db.DailyHealthUpsertManager import DailyHealthUpsertManager
 # ===========================
 # 初期処理
 # ===========================
@@ -42,17 +45,35 @@ load_dotenv()
 
 DBURL=os.getenv("DATABASE_URL")
 
+def get_auth_user() -> dict:
+    # 将来の認証連携では、ログイン後に st.session_state["auth_user"] を設定してください。
+    # 例: {"oauth_provider": "...", "oauth_subject": "..."}
+    #st.session_state["auth_user"] = {
+    #"oauth_provider": "...",
+    #"oauth_subject": "...",
+    #}
+
+    session_auth_user = st.session_state.get("auth_user")
+    if session_auth_user is not None:
+        return session_auth_user
+
+    return {
+        "oauth_provider": os.getenv("APP_OAUTH_PROVIDER", "google"),
+        "oauth_subject": os.getenv("APP_OAUTH_SUBJECT", "1"),
+    }
+
+auth_user = get_auth_user()
+
+#-------------
+# 初期化処理
+#-------------
 if not "initialized" in st.session_state : 
     with st.spinner("読み込み中です。しばらくお待ちください..."):
         st.session_state.initialized = True
-
-        #-------------
-        # 初期化処理
-        #-------------
-        init = Initialize()
-
-        init_result = init.run(oauth_provider="google", oauth_subject="1")
+        init = LoadHelthData()
+        init_result = init.run(auth_user=auth_user)
         st.session_state.today_health_data = init_result["dbdata"]
+        st.session_state.selected_record_at = str(init_result["dbdata"]["date"])
         rag_chains = init_result["rag_chains"]
         for chain_name, chain in rag_chains.items():
             st.session_state[chain_name] = chain
@@ -63,6 +84,37 @@ if not "initialized" in st.session_state :
 st.title("kyo")
 st.subheader("カレンダー")
 today = st.date_input("日付")
+selected_record_at = today.isoformat()
+
+if st.session_state.get("selected_record_at") != selected_record_at:
+    with st.spinner("指定日のデータを読み込み中です..."):
+        init = LoadHelthData()
+        selected_dbdata = init.load_daily_health_data(
+            auth_user=auth_user,
+            record_at=selected_record_at,
+        )
+
+        if selected_dbdata is None:
+            current_data = st.session_state.get("today_health_data", {})
+            st.session_state.today_health_data = {
+                "uid": current_data.get("uid"),
+                "date": selected_record_at,
+                "meal": "",
+                "kcal": 0,
+                "carbo": 0,
+                "lipid": 0,
+                "protein": 0,
+                "sleep_hour": 0.0,
+                "water": 0,
+                "stress_level": 0,
+                "mood": "",
+                "exercise": "",
+            }
+            st.warning(f"{selected_record_at} のデータはまだありません。")
+        else:
+            st.session_state.today_health_data = selected_dbdata
+
+        st.session_state.selected_record_at = selected_record_at
 
 
 # ===========================
@@ -133,16 +185,20 @@ meal = f"""
         Dinner:{dinner}
         eating between meals:{snack}
         """
+
+if "nutrients_result" not in st.session_state:
+    st.session_state.nutrients_result = None
+
 if st.button("栄養素を計算する"):
     with st.spinner("計算しています..."):
         # LLM
         nl = NutrientsLLM()
         result = nl.get_nutrients(meal)
+        st.session_state.nutrients_result = result
         st.write(
             f'カロリー:{result.kcal}kcal / 炭水化物:{result.carbo}g / 脂質:{result.lipid}g / タンパク質:{result.protein}g'
         )
         # アドバイス用にセッションに保管する。
-
         # データの保存をする
 
 st.write(f"■厚生労働省が定めている１日の目安[カロリー:2,200〜2,500kcal / 炭水化物:250〜350g / 脂質:44〜67g / タンパク質:65〜100g]") 
@@ -219,14 +275,75 @@ if st.button("今日のAIアドバイスを聞く"):
         )
         st.write(msg)
 
+#------------------------
+# 保存処理
+#------------------------
 if st.button("保存する"):
-    print("保存")
-    # 栄養素の内容がない時は計算
-    # その日のデータをJSON化
-    # DBへ保存
-    # データ集計バッチが必要？
-    # 一月のデータの平均値を計算
-    # 1週間のデータの平均値を計算
+    with st.spinner("保存しています..."):
+        record_at = today.isoformat()
+
+        uid = st.session_state.today_health_data["uid"]
+        meal_for_db = f"朝:{breakfast}/昼:{lunch}/夜:{dinner}/間食:{snack}"
+
+        nutrients_result = st.session_state.get("nutrients_result")
+        if nutrients_result is not None:
+            kcal = int(nutrients_result.kcal)
+            carbo = float(nutrients_result.carbo)
+            lipid = float(nutrients_result.lipid)
+            protein = float(nutrients_result.protein)
+        else:
+            kcal = int(today_health_data.get("kcal") or 0)
+            carbo = float(today_health_data.get("carbo") or 0)
+            lipid = float(today_health_data.get("lipid") or 0)
+            protein = float(today_health_data.get("protein") or 0)
+
+        upsert_params = {
+            "uid": uid,
+            "record_at": record_at,
+            "meal": meal_for_db,
+            "kcal": kcal,
+            "carbo": carbo,
+            "lipid": lipid,
+            "protein": protein,
+            "sleep_hours": float(sleep_hours),
+            "water_ml": int(water_ml),
+            "exercise": exercise,
+            "stress": int(stress),
+            "mood": mood,
+            "created_user": "system",
+            "updated_user": "system",
+        }
+        daily_health_upsert_manager = DailyHealthUpsertManager()
+        daily_health_upsert_manager.query(upsert_params)
+
+        save_dbdata = {
+            "uid": uid,
+            "date": record_at,
+            "meal": meal_for_db,
+            "kcal": kcal,
+            "carbo": carbo,
+            "lipid": lipid,
+            "protein": protein,
+            "sleep_hour": float(sleep_hours),
+            "water": int(water_ml),
+            "stress_level": int(stress),
+            "mood": mood,
+            "exercise": exercise,
+        }
+
+        category_master_query_manager = CategoryMasterQueryManager()
+        category_rows = category_master_query_manager.query()
+        category_map = {}
+        for row in category_rows:
+            category_map[str(row["name"]).lower()] = row["category_id"]
+
+        today_rag_saver = TodayRagSaver()
+        for category_name in ["stress", "meals", "exercise", "general"]:
+            category_id = category_map[category_name]
+            today_rag_saver.save(category_name, category_id, save_dbdata)
+
+        st.session_state.today_health_data = save_dbdata
+        st.success("保存しました。")
 
 
 # ===========================
@@ -249,6 +366,24 @@ if question:
     st.session_state.chat_history.append({"role": "user", "content": question})
     with st.chat_message("user"):
         st.markdown(question)
+
+    required_chain_names = [
+        "stress_rag_chain",
+        "meals_rag_chain",
+        "exercise_rag_chain",
+        "general_rag_chain",
+    ]
+    missing_chain_names = []
+    for chain_name in required_chain_names:
+        if chain_name not in st.session_state:
+            missing_chain_names.append(chain_name)
+
+    if missing_chain_names:
+        message = "RAGデータが未作成です。先に「保存する」を押してデータを作成してください。"
+        with st.chat_message("assistant"):
+            st.markdown(message)
+        st.session_state.chat_history.append({"role": "assistant", "content": message})
+        st.stop()
 
     agent_tools = AgentTools(
         st.session_state.stress_rag_chain,

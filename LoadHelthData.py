@@ -1,16 +1,14 @@
 from utils.MonthlyRagLoader import MonthlyRagLoader
 from utils.RagRetrieverChainBuilder import RagRetrieverChainBuilder
-from utils.TodayRagSaver import TodayRagSaver
 from db.CategoryMasterQueryManager import CategoryMasterQueryManager
 from db.DailyHealthQueryManager import DailyHealthQueryManager
 from datetime import date
-from langchain.retrievers import MergerRetriever
 
 
 #
 # 初期処理のクラス
 #
-class Initialize:
+class LoadHelthData:
     def __init__(self):
         self.category_map = self._load_category_map()
 
@@ -30,13 +28,12 @@ class Initialize:
         return self.category_map[key]
 
     #
-    # 当日のRAGの登録と、RAGのデータを読み込みます。
+    # 1ヶ月分のRAGを読み込みます。
     # 
     # 
     def load_rag_data(self, dbdata: dict):
         rag_chains = {}
         categories = ["stress", "meals", "exercise", "general"]
-        today_rag_saver = TodayRagSaver()
         monthly_loader = MonthlyRagLoader()
         chain_builder = RagRetrieverChainBuilder()
 
@@ -44,10 +41,7 @@ class Initialize:
             for category_name in categories:
                 category_id = self._get_category_id(category_name)
 
-                # 1. 当日RAG更新
-                today_rag_data = today_rag_saver.save(category_name, category_id, dbdata)
-
-                # 2. 1ヶ月分のRAG読み込み
+                # 1. 1ヶ月分のRAG読み込み
                 rag_data = monthly_loader.load(
                     uid=dbdata["uid"],
                     category_id=category_id,
@@ -55,14 +49,13 @@ class Initialize:
                     category_name=category_name,
                 )
 
-                # 当日しかない場合はそのデータだけ使う
+                # 1ヶ月分データがないカテゴリはスキップ
                 if rag_data is None:
-                    retriever = today_rag_data["retriever"]
-                else:
-                    # 1ヶ月分のデータがあれば当日のデータと付け合わせる
-                    retriever = MergerRetriever(retrievers=[today_rag_data["retriever"], rag_data["retriever"]])
+                    continue
 
-                # 3. Retriever chain 作成
+                retriever = rag_data["retriever"]
+
+                # 2. Retriever chain 作成
                 rag_chain = chain_builder.build(retriever)
                 rag_chains[f"{category_name}_rag_chain"] = rag_chain
 
@@ -70,27 +63,38 @@ class Initialize:
         except Exception as e:
             print(f"Failed to connect: {e}")
 
-    def run(self, oauth_provider: str, oauth_subject: str):
+    def load_daily_health_data(self, auth_user: dict, record_at: str) -> dict | None:
+        oauth_provider = auth_user["oauth_provider"]
+        oauth_subject = auth_user["oauth_subject"]
+        daily_health_query_manager = DailyHealthQueryManager()
+        daily_health_row = daily_health_query_manager.query(oauth_provider, oauth_subject, record_at)
+        if daily_health_row is None:
+            return None
+
+        return {
+            "uid": daily_health_row[0],
+            "date": daily_health_row[3],
+            "meal": daily_health_row[4],
+            "kcal": daily_health_row[5],
+            "carbo": daily_health_row[6],
+            "lipid": daily_health_row[7],
+            "protein": daily_health_row[8],
+            "sleep_hour": daily_health_row[9],
+            "water": daily_health_row[10],
+            "stress_level": daily_health_row[11],
+            "mood": daily_health_row[12],
+            "exercise": daily_health_row[13],
+        }
+
+    def run(self, auth_user: dict):
         # 今日の日付を取得
         record_at = date.today().isoformat()
 
         # 1. 今日の健康データを取得
-        daily_health_query_manager = DailyHealthQueryManager()
-        daily_health_row = daily_health_query_manager.query(oauth_provider, oauth_subject, record_at)
-        if daily_health_row is None:
+        dbdata = self.load_daily_health_data(auth_user, record_at)
+        if dbdata is None:
             raise ValueError(f"対象日の健康データがありません: {record_at}")
 
-        dbdata = {
-            "uid": daily_health_row[0],
-            "date": daily_health_row[3],
-            "meal": daily_health_row[4],
-            "water": daily_health_row[5],
-            "sleep_hour": daily_health_row[9],
-            "stress_level": daily_health_row[10],
-            "mood": daily_health_row[11],
-            "exercise": daily_health_row[12],
-        }
-
-        # 2. 今日のRAG更新 + 3. 1ヶ月分RAG読み込み
+        # 2. 1ヶ月分RAG読み込み
         rag_chains = self.load_rag_data(dbdata)
         return {"dbdata": dbdata, "rag_chains": rag_chains}

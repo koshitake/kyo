@@ -19,6 +19,7 @@ class DailyHealthQueryManager(DBManager):
                 h.lipid,
                 h.protein,
                 h.sleep_hours,
+                h.water_ml,
                 h.stress,
                 h.mood,
                 h.exercise,
